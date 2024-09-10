@@ -16,7 +16,19 @@ builder.Services.AddScoped(typeof(IGenericRepository<>), typeof(GenericRepositor
 builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
 builder.Services.AddScoped<IOrderService, OrderServices>();
 builder.Services.AddHttpClient<IProductService, ProductService>();
-builder.Services.AddHttpClient<ICustomerService, CustomerService>();
+
+var handler = new HttpClientHandler
+{
+    ServerCertificateCustomValidationCallback = (message, cert, chain, errors) => true
+};
+var client = new HttpClient(handler);
+builder.Services.AddHttpClient<ICustomerService, CustomerService>(client =>
+{
+    client.BaseAddress = new Uri("https://localhost:5001");
+});
+
+
+//builder.Services.AddHttpClient<ICustomerService, CustomerService>();
 builder.Services.AddAutoMapper(typeof(MappingProfile));
 builder.Services.AddControllers();
 // Configure the HTTP request pipeline.

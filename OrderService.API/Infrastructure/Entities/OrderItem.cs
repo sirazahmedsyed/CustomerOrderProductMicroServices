@@ -23,4 +23,5 @@ namespace OrderService.API.Infrastructure.Entities
 
         public Order Order { get; set; }
     }
+}
 

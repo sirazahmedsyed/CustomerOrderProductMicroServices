@@ -37,8 +37,9 @@ public class OrderServices : IOrderService
 
             public async Task<OrderDTO> AddOrderAsync(OrderDTO orderDto)
             {
-                // Validate customer
-                if (!await _customerService.CustomerExistsAsync(orderDto.CustomerId))
+            
+            // Validate customer
+            if (!await _customerService.CustomerExistsAsync(orderDto.CustomerId))
                 {
                     throw new Exception($"Customer with ID {orderDto.CustomerId} does not exist.");
                 }
@@ -184,6 +185,4 @@ public class OrderServices : IOrderService
             }
         }
     }
-
-        
-    }
+   }
