@@ -4,9 +4,11 @@ using CustomerService.API.Infrastructure.DTOs;
 using CustomerService.API.Infrastructure.Services;
 using System;
 using System.Threading.Tasks;
+using Microsoft.AspNetCore.Authorization;
 
 namespace CustomerService.API.Controllers
 {
+    [Authorize]
     [ApiController]
     [Route("api/[controller]")]
     public class ProductsController : ControllerBase
@@ -72,12 +74,12 @@ namespace CustomerService.API.Controllers
             try
             {
                 var createdProduct = await _productService.AddProductAsync(productDto);
-                _logger.LogInformation("Product with ID {ProductId} created", productDto.ProductId);
+                _logger.LogInformation("Product with ID {productDto.ProductId} created", productDto.ProductId);
                 return Ok(createdProduct);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error occurred while creating product with ID {ProductId}", productDto.ProductId);
+                _logger.LogError(ex, "Error occurred while creating product with ID {productDto.ProductId}", productDto.ProductId);
                 return StatusCode(500, "Internal server error");
             }
         }

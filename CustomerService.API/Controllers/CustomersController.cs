@@ -4,6 +4,8 @@ using System;
 using System.Threading.Tasks;
 using CustomerService.API.Infrastructure.DTOs;
 using CustomerService.API.Infrastructure.Services;
+using Microsoft.AspNetCore.Authorization;
+using CustomerService.API.Infrastructure.Entities;
 
 namespace CustomerService.API.Controllers
 {
@@ -20,7 +22,7 @@ namespace CustomerService.API.Controllers
             _logger = logger;
         }
 
-        // GET: api/customer
+        [Authorize]
         [HttpGet]
         [Route("")]
         public async Task<IActionResult> GetAllCustomers()
@@ -38,9 +40,8 @@ namespace CustomerService.API.Controllers
             }
         }
 
-        // GET: api/customer/{id}
         [HttpGet]
-        [Route("{id:int}")]
+        [Route("{id:Guid}")]
         public async Task<IActionResult> GetCustomerById(Guid id)
         {
             try
@@ -61,7 +62,6 @@ namespace CustomerService.API.Controllers
             }
         }
 
-        // POST: api/customer
         [HttpPost]
         [Route("")]
         public async Task<IActionResult> CreateCustomer([FromBody] CustomerDTO customerDto)
@@ -74,13 +74,21 @@ namespace CustomerService.API.Controllers
 
             try
             {
-                var createdCustomer = await _customerService.AddCustomerAsync(customerDto);
-                _logger.LogInformation("Customer with ID {CustomerId} created", customerDto.CustomerId);
-                return Ok(createdCustomer);
+                var (isSuccess, customerId, createdCustomerDto, message) = await _customerService.AddCustomerAsync(customerDto);
+
+                if (!isSuccess)
+                {
+                    _logger.LogWarning("Customer creation failed: {Message}", message);
+                    return Conflict(new { Message = message });
+                }
+
+                _logger.LogInformation("Customer with ID {CustomerId} created", customerId);
+                return Ok(createdCustomerDto);
+
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error occurred while creating customer with ID {CustomerId}", customerDto.CustomerId);
+                _logger.LogError(ex, "Error occurred while creating customer");
                 return StatusCode(500, "Internal server error");
             }
         }
@@ -97,15 +105,16 @@ namespace CustomerService.API.Controllers
 
             try
             {
-                var updatedCustomer = await _customerService.UpdateCustomerAsync(customerDto);
-                if (!updatedCustomer.IsSuccess)
+                var (isSuccess, updatedCustomerDto, message) = await _customerService.UpdateCustomerAsync(customerDto);
+
+                if (!isSuccess)
                 {
-                    _logger.LogWarning("Customer with ID {CustomerId} not found", customerDto.CustomerId);
-                    return NotFound($"Customer with ID {customerDto.CustomerId} not found.");
+                    _logger.LogWarning("Customer updation failed: {Message}", message);
+                    return Conflict(new { Message = message });
                 }
 
-                _logger.LogInformation("Customer with ID {CustomerId} updated", customerDto.CustomerId);
-                return Ok(updatedCustomer);
+                _logger.LogInformation("Customer with ID {CustomerId} updated", updatedCustomerDto.CustomerId);
+                return Ok(updatedCustomerDto);
             }
             catch (Exception ex)
             {
@@ -114,9 +123,8 @@ namespace CustomerService.API.Controllers
             }
         }
 
-        // DELETE: api/customer/{id}
         [HttpDelete]
-        [Route("{id:int}")]
+        [Route("{id:Guid}")]
         public async Task<IActionResult> DeleteCustomer(Guid id)
         {
             try
@@ -140,7 +148,3 @@ namespace CustomerService.API.Controllers
         }
     }
 }
-
-
-
-

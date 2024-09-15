@@ -1,7 +1,7 @@
 ﻿using System.Linq.Expressions;
 using System.Threading.Tasks;
 using System.Collections.Generic;
-namespace AuthMicroservice.Infrastructure.Repositories
+namespace AuthService.API.Infrastructure.Repositories
 {
     public interface IGenericRepository<T> where T : class
     {

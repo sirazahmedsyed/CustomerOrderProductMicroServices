@@ -22,7 +22,7 @@ namespace CustomerService.API.Infrastructure.Entities
         public string Email { get; set; }
 
         [Phone]
-        [StringLength(20)]
+        [StringLength(12)]
         public string PhoneNumber { get; set; }
     }
 }

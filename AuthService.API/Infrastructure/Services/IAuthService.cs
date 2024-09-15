@@ -1,6 +1,6 @@
-﻿using AuthMicroservice.Infrastructure.DTOs;
+﻿using AuthService.API.Infrastructure.DTOs;
 
-namespace AuthMicroservice.Infrastructure.Services
+namespace AuthService.API.Infrastructure.Services
 {
     public interface IAuthService
     {

@@ -1,16 +1,16 @@
 ﻿using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Configuration;
 using Microsoft.IdentityModel.Tokens;
-using AuthMicroservice.Infrastructure.DTOs;
-using AuthMicroservice.Infrastructure.Entities;
+using AuthService.API.Infrastructure.DTOs;
+using AuthService.API.Infrastructure.Entities;
 using System;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
 using System.Threading.Tasks;
-using AuthMicroservice.Infrastructure.Services;
+using AuthService.API.Infrastructure.Services;
 
-namespace AuthMicroservice.Infrastructure.Services
+namespace AuthService.API.Infrastructure.Services
 {
     public class AuthServices : IAuthService
     {
@@ -96,7 +96,7 @@ namespace AuthMicroservice.Infrastructure.Services
 
         private string GenerateJwtToken(ApplicationUser user)
         {
-            var securityKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_configuration["Jwt:Key"]));
+            var securityKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_configuration["Jwt:SecretKey"]));
             var credentials = new SigningCredentials(securityKey, SecurityAlgorithms.HmacSha256);
 
             var claims = new[]

@@ -1,12 +1,15 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using OrderService.API.Infrastructure.DTOs;
+using OrderService.API.Infrastructure.Entities;
 using OrderService.API.Infrastructure.Services;
 using System;
 using System.Threading.Tasks;
 
 namespace OrderService.API.Controllers
 {
+    [Authorize]
     [ApiController]
     [Route("api/[controller]")]
     public class OrdersController : ControllerBase
@@ -20,7 +23,6 @@ namespace OrderService.API.Controllers
             _logger = logger;
         }
 
-        // Get all orders with their order items
         [HttpGet]
         [Route("")]
         public async Task<IActionResult> GetAllOrders()
@@ -38,7 +40,6 @@ namespace OrderService.API.Controllers
             }
         }
 
-        // Get order by id
         [HttpGet]
         [Route("{id:guid}")]
         public async Task<IActionResult> GetOrderById(Guid id)
@@ -61,8 +62,7 @@ namespace OrderService.API.Controllers
             }
         }
 
-        // Create order
-        [HttpPost]
+       [HttpPost]
         [Route("")]
         public async Task<IActionResult> CreateOrder([FromBody] OrderDTO orderDto)
         {
@@ -74,9 +74,19 @@ namespace OrderService.API.Controllers
 
             try
             {
-               var createdAtOrder= await _orderService.AddOrderAsync(orderDto);
+                var createdAtOrder = await _orderService.AddOrderAsync(orderDto);
                 _logger.LogInformation("Order with ID {OrderId} created", orderDto.OrderId);
                 return Ok(createdAtOrder);
+            }
+            catch (CustomerNotFoundException ex)
+            {
+                _logger.LogWarning(ex.Message);
+                return NotFound(new { message = ex.Message });
+            }
+            catch (ProductNotFoundException ex)
+            {
+                _logger.LogWarning(ex.Message);
+                return NotFound(new { message = ex.Message });
             }
             catch (Exception ex)
             {

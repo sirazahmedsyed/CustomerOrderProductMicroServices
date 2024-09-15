@@ -1,4 +1,5 @@
 ﻿using OrderService.API.Infrastructure.Entities;
+using System.Net.Http.Headers;
 using System.Text.Json;
 
 namespace OrderService.API.Infrastructure.Services
@@ -7,16 +8,18 @@ namespace OrderService.API.Infrastructure.Services
     {
         private readonly HttpClient _httpClient;
         
-        private const string ProductApiBaseUrl = "https://localhost:7219/api/Products";
+        private const string ProductApiBaseUrl = "http://localhost:7219/api/Products";
         
         public ProductService(HttpClient httpClient)
         {
             _httpClient = httpClient;
         }
 
-        public async Task<bool> ProductExistsAsync(int productId)
+        public async Task<bool> ProductExistsAsync(int productId, string bearerToken)
         {
-            var response = await _httpClient.GetAsync($"{ProductApiBaseUrl}/?Id={productId}");
+            var request = new HttpRequestMessage(HttpMethod.Get, $"{ProductApiBaseUrl}/?Id={productId}");
+            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", bearerToken);
+            var response = await _httpClient.SendAsync(request);
             if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
             {
                 return false;
@@ -25,13 +28,13 @@ namespace OrderService.API.Infrastructure.Services
             return true;
         }
 
-        public async Task<(decimal Price, decimal TaxPercentage)> GetProductDetailsAsync(int productId)
+        public async Task<(decimal Price, decimal TaxPercentage)> GetProductDetailsAsync(int productId, string bearerToken)
         {
-            var response = await _httpClient.GetAsync($"{ProductApiBaseUrl}/?Id={productId}");
+            var request = new HttpRequestMessage(HttpMethod.Get, $"{ProductApiBaseUrl}/?Id={productId}");
+            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", bearerToken);
+            var response = await _httpClient.SendAsync(request);
             response.EnsureSuccessStatusCode();
-
             var content = await response.Content.ReadAsStringAsync();
-
             using (JsonDocument document = JsonDocument.Parse(content))
             {
                 JsonElement root = document.RootElement;

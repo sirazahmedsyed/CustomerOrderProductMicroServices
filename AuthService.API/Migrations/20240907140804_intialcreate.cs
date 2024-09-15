@@ -2,7 +2,7 @@
 
 #nullable disable
 
-namespace AuthMicroservice.Migrations
+namespace AuthService.API.Migrations
 {
     /// <inheritdoc />
     public partial class intialcreate : Migration

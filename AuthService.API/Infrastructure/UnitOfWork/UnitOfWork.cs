@@ -1,7 +1,7 @@
-﻿using AuthMicroservice.Infrastructure.DBContext;
-using AuthMicroservice.Infrastructure.Repositories;
+﻿using AuthService.API.Infrastructure.DBContext;
+using AuthService.API.Infrastructure.Repositories;
 
-namespace AuthMicroservice.Infrastructure.UnitOfWork
+namespace AuthService.API.Infrastructure.UnitOfWork
 {
     public class UnitOfWork : IUnitOfWork
     {

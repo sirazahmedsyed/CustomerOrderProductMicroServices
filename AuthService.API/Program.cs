@@ -1,8 +1,8 @@
-using AuthMicroservice.Infrastructure.DBContext;
-using AuthMicroservice.Infrastructure.Entities;
-using AuthMicroservice.Infrastructure.Profiles;
-using AuthMicroservice.Infrastructure.Services;
-using AuthMicroservice.Infrastructure.UnitOfWork;
+using AuthService.API.Infrastructure.DBContext;
+using AuthService.API.Infrastructure.Entities;
+using AuthService.API.Infrastructure.Profiles;
+using AuthService.API.Infrastructure.Services;
+using AuthService.API.Infrastructure.UnitOfWork;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Identity;
@@ -21,6 +21,17 @@ builder.Services.AddSwaggerGen();
 // Add services to the container.
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
+
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("CorsPolicy",
+        builder => builder.AllowAnyOrigin()
+                          .AllowAnyMethod()
+                          .AllowAnyHeader());
+});
+
+
+
 builder.Services.AddIdentity<ApplicationUser, IdentityRole>()
        .AddEntityFrameworkStores<ApplicationDbContext>()
        .AddDefaultTokenProviders();
@@ -50,10 +61,12 @@ if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
     app.UseSwaggerUI();
+    app.UseDeveloperExceptionPage();
 }
-app.UseHttpsRedirection();
+//app.UseHttpsRedirection();
 app.UseAuthentication();
 app.UseAuthorization();
 //app.UseMiddleware<GlobalExceptionHandlerMiddleware>();
 app.MapControllers();
+app.UseCors("CorsPolicy");
 app.Run();

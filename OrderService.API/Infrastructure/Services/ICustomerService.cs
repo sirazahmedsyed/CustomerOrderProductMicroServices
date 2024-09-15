@@ -2,6 +2,6 @@
 {
     public interface ICustomerService
     {
-        Task<bool> CustomerExistsAsync(Guid customerId);
+        Task<bool> CustomerExistsAsync(Guid customerId, string bearerToken);
     }
 }

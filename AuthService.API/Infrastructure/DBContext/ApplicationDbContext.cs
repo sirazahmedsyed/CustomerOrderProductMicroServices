@@ -1,8 +1,8 @@
-﻿using AuthMicroservice.Infrastructure.Entities;
+﻿using AuthService.API.Infrastructure.Entities;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 
-namespace AuthMicroservice.Infrastructure.DBContext
+namespace AuthService.API.Infrastructure.DBContext
 {
     public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
     {

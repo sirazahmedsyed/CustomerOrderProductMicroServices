@@ -1,8 +1,8 @@
-﻿using AuthMicroservice.Infrastructure.DBContext;
+﻿using AuthService.API.Infrastructure.DBContext;
 using Microsoft.EntityFrameworkCore;
 using System.Linq.Expressions;
 
-namespace AuthMicroservice.Infrastructure.Repositories
+namespace AuthService.API.Infrastructure.Repositories
 {
     public class GenericRepository<T> : IGenericRepository<T> where T : class
     {

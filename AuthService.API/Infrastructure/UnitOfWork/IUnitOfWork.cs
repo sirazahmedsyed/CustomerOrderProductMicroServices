@@ -1,6 +1,6 @@
-﻿using AuthMicroservice.Infrastructure.Repositories;
+﻿using AuthService.API.Infrastructure.Repositories;
 
-namespace AuthMicroservice.Infrastructure.UnitOfWork
+namespace AuthService.API.Infrastructure.UnitOfWork
 {
     public interface IUnitOfWork : IDisposable
     {

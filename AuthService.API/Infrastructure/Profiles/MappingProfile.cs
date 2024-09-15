@@ -1,7 +1,7 @@
-﻿using AuthMicroservice.Infrastructure.DTOs;
-using AuthMicroservice.Infrastructure.Entities;
+﻿using AuthService.API.Infrastructure.DTOs;
+using AuthService.API.Infrastructure.Entities;
 using AutoMapper;
-namespace AuthMicroservice.Infrastructure.Profiles
+namespace AuthService.API.Infrastructure.Profiles
 {
     public class MappingProfile : Profile
     {

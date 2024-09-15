@@ -1,6 +1,6 @@
 ﻿using System.ComponentModel.DataAnnotations;
 
-namespace AuthMicroservice.Infrastructure.DTOs
+namespace AuthService.API.Infrastructure.DTOs
 {
     public class UpdateUserDto
     {
