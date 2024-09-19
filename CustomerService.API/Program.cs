@@ -1,14 +1,14 @@
-using CustomerService.API.Infrastructure.Repositories;
-using CustomerService.API.Infrastructure.Services;
-using CustomerService.API.Infrastructure.UnitOfWork;
-using CustomerService.API.Infrastructure.Profiles;
+using ProductService.API.Infrastructure.Repositories;
+using ProductService.API.Infrastructure.Services;
+using ProductService.API.Infrastructure.UnitOfWork;
+using ProductService.API.Infrastructure.Profiles;
 using Microsoft.EntityFrameworkCore;
-using CustomerService.API.Infrastructure.DBContext;
+using ProductService.API.Infrastructure.DBContext;
 using Microsoft.OpenApi.Models;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
-using CustomerService.API.Infrastructure.Middleware;
+using ProductService.API.Infrastructure.Middleware;
 
 var builder = WebApplication.CreateBuilder(args);
 // Add services to the container.
@@ -90,6 +90,7 @@ if (app.Environment.IsDevelopment())
 }
 // Custom middleware to handle unauthorized access
 app.UseMiddleware<CustomAuthenticationMiddleware>();
+app.UseCors("CorsPolicy");
 //app.UseHttpsRedirection();
 app.UseAuthentication();
 app.UseAuthorization();

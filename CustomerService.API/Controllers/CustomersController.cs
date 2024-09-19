@@ -2,12 +2,12 @@
 using Microsoft.Extensions.Logging;
 using System;
 using System.Threading.Tasks;
-using CustomerService.API.Infrastructure.DTOs;
-using CustomerService.API.Infrastructure.Services;
+using ProductService.API.Infrastructure.DTOs;
+using ProductService.API.Infrastructure.Services;
 using Microsoft.AspNetCore.Authorization;
-using CustomerService.API.Infrastructure.Entities;
+using ProductService.API.Infrastructure.Entities;
 
-namespace CustomerService.API.Controllers
+namespace ProductService.API.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
@@ -40,8 +40,8 @@ namespace CustomerService.API.Controllers
             }
         }
 
-        [HttpGet]
-        [Route("{id:Guid}")]
+        //[HttpGet]
+        [HttpGet("{id:Guid}")]
         public async Task<IActionResult> GetCustomerById(Guid id)
         {
             try
@@ -78,13 +78,18 @@ namespace CustomerService.API.Controllers
 
                 if (!isSuccess)
                 {
+                    if (message.Contains("already exists"))
+                    {
+                        _logger.LogWarning("Customer creation failed: {Message}", message);
+                        return Ok(new { Message = "Customer with this email already exists." });
+                    }
+
                     _logger.LogWarning("Customer creation failed: {Message}", message);
-                    return Conflict(new { Message = message });
+                    return Ok(new { Message = message });
                 }
 
                 _logger.LogInformation("Customer with ID {CustomerId} created", customerId);
                 return Ok(createdCustomerDto);
-
             }
             catch (Exception ex)
             {

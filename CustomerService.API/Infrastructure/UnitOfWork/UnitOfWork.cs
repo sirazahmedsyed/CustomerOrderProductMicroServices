@@ -1,11 +1,11 @@
-﻿using CustomerService.API.Infrastructure.Repositories;
+﻿using ProductService.API.Infrastructure.Repositories;
 using System;
 using System.Threading.Tasks;
-using CustomerService.API.Infrastructure.DBContext;
-using CustomerService.API.Infrastructure.Entities;
-using CustomerService.API.Infrastructure.UnitOfWork;
+using ProductService.API.Infrastructure.DBContext;
+using ProductService.API.Infrastructure.Entities;
+using ProductService.API.Infrastructure.UnitOfWork;
 
-namespace CustomerService.API.Infrastructure.UnitOfWork
+namespace ProductService.API.Infrastructure.UnitOfWork
 {
     public class UnitOfWork : IUnitOfWork
     {

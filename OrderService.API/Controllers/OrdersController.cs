@@ -129,6 +129,11 @@ namespace OrderService.API.Controllers
                 await _orderService.DeleteOrderAsync(id);
                 return NoContent();
             }
+            catch (OrderNotFoundException ex)
+            {
+                _logger.LogWarning(ex.Message);
+                return NotFound(new { message = ex.Message });
+            }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error occurred while deleting order with ID {OrderId}", id);

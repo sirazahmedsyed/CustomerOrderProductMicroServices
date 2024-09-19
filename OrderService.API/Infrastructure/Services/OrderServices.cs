@@ -38,57 +38,256 @@ public class OrderServices : IOrderService
             return order == null ? null : _mapper.Map<OrderDTO>(order);
         }
 
-        public async Task<OrderDTO> AddOrderAsync(OrderDTO orderDto)
+
+        //    public async Task<OrderDTO> AddOrderAsync(OrderDTO orderDto)
+        //    {
+        //        var bearerToken = _httpContextAccessor.HttpContext.Request.Headers["Authorization"].ToString().Replace("Bearer ", "");
+
+        //        // Validate customer
+        //        if (!await _customerService.CustomerExistsAsync(orderDto.CustomerId, bearerToken))
+        //        {
+        //            throw new CustomerNotFoundException(orderDto.CustomerId);
+        //        }
+
+        //        //// Check if there is an existing order for the customer
+        //        //var existingOrder = await _unitOfWork.Repository<Order>()
+        //        //    .GetAsync(o => o.CustomerId == orderDto.CustomerId && o.OrderItems.Any(oi => orderDto.OrderItems.Select(i => i.ProductId).Contains(oi.ProductId)),
+        //        //              include: o => o.Include(o => o.OrderItems));
+
+        //        var existingOrders = await _unitOfWork.Repository<Order>()
+        //.GetAllAsync(
+        //    o => o.CustomerId == orderDto.CustomerId && o.OrderItems.Any(oi => orderDto.OrderItems.Select(i => i.ProductId).Contains(oi.ProductId)),
+        //    include: o => o.Include(o => o.OrderItems));
+
+        //        if (existingOrders != null)
+        //        {
+        //            // Update quantities for existing products
+        //            foreach (var itemDto in orderDto.OrderItems)
+        //            {
+        //                var existingItem = existingOrders.OrderItems.FirstOrDefault(oi => oi.ProductId == itemDto.ProductId);
+
+        //                if (existingItem != null)
+        //                {
+        //                    existingItem.Quantity += itemDto.Quantity; // Update the quantity
+        //                }
+        //                else
+        //                {
+        //                    // Add new product to the existing order
+        //                    var (price, taxPercentage) = await _productService.GetProductDetailsAsync(itemDto.ProductId, bearerToken);
+        //                    existingOrder.OrderItems.Add(new OrderItem
+        //                    {
+        //                        ProductId = itemDto.ProductId,
+        //                        Quantity = itemDto.Quantity,
+        //                        UnitPrice = price
+        //                    });
+        //                }
+        //            }
+
+        //            await CalculateOrderTotals(existingOrder, bearerToken);
+        //            _unitOfWork.Repository<Order>().Update(existingOrder);
+        //        }
+        //        else
+        //        {
+        //            // Group and sum quantities for duplicate product IDs
+        //            var groupedOrderItems = orderDto.OrderItems
+        //                .GroupBy(item => item.ProductId)
+        //                .Select(g => new OrderItemDTO
+        //                {
+        //                    ProductId = g.Key,
+        //                    Quantity = g.Sum(item => item.Quantity)
+        //                })
+        //                .ToList();
+
+        //            // Validate products and create new order
+        //            var orderItems = new List<OrderItem>();
+        //            foreach (var item in groupedOrderItems)
+        //            {
+        //                if (!await _productService.ProductExistsAsync(item.ProductId, bearerToken))
+        //                {
+        //                    throw new ProductNotFoundException(item.ProductId);
+        //                }
+
+        //                var (price, taxPercentage) = await _productService.GetProductDetailsAsync(item.ProductId, bearerToken);
+        //                orderItems.Add(new OrderItem
+        //                {
+        //                    ProductId = item.ProductId,
+        //                    Quantity = item.Quantity,
+        //                    UnitPrice = price
+        //                });
+        //            }
+
+        //            var order = new Order
+        //            {
+        //                OrderId = Guid.NewGuid(),
+        //                CustomerId = orderDto.CustomerId,
+        //                OrderDate = DateTime.UtcNow,
+        //                DiscountPercentage = orderDto.DiscountPercentage,
+        //                OrderItems = orderItems
+        //            };
+
+        //            await CalculateOrderTotals(order, bearerToken);
+        //            await _unitOfWork.Repository<Order>().AddAsync(order);
+        //            existingOrder = order; // Set this to return the newly created order
+        //        }
+
+        //        await _unitOfWork.CompleteAsync();
+        //        return _mapper.Map<OrderDTO>(existingOrder);
+        //    }
+
+        //public async Task<OrderDTO> AddOrderAsync(OrderDTO orderDto)
+        //{
+        //    var bearerToken = _httpContextAccessor.HttpContext.Request.Headers["Authorization"].ToString().Replace("Bearer ", "");
+        //    // Validate customer
+        //    if (!await _customerService.CustomerExistsAsync(orderDto.CustomerId, bearerToken))
+        //    {
+        //        throw new CustomerNotFoundException(orderDto.CustomerId);
+        //    }
+
+        //    // Group and sum quantities for duplicate product IDs
+        //    var groupedOrderItems = orderDto.OrderItems
+        //        .GroupBy(item => item.ProductId)
+        //        .Select(g => new OrderItemDTO
+        //        {
+        //            ProductId = g.Key,
+        //            Quantity = g.Sum(item => item.Quantity)
+        //        })
+        //        .ToList();
+
+        //    // Validate products and create order items
+        //    var orderItems = new List<OrderItem>();
+        //    foreach (var item in groupedOrderItems)
+        //    {
+        //        if (!await _productService.ProductExistsAsync(item.ProductId, bearerToken))
+        //        {
+        //            throw new ProductNotFoundException(item.ProductId);
+        //        }
+
+        //        var (price, taxPercentage) = await _productService.GetProductDetailsAsync(item.ProductId, bearerToken);
+        //        orderItems.Add(new OrderItem
+        //        {
+        //            ProductId = item.ProductId,
+        //            Quantity = item.Quantity,
+        //            UnitPrice = price
+        //        });
+        //    }
+
+        //    var order = new Order
+        //    {
+        //        OrderId = Guid.NewGuid(),
+        //        CustomerId = orderDto.CustomerId,
+        //        OrderDate = DateTime.UtcNow,
+        //        DiscountPercentage = orderDto.DiscountPercentage,
+        //        OrderItems = orderItems
+        //    };
+
+        //    await CalculateOrderTotals(order, bearerToken);
+        //    await _unitOfWork.Repository<Order>().AddAsync(order);
+        //    await _unitOfWork.CompleteAsync();
+        //    var createdOrderDto = _mapper.Map<OrderDTO>(order);
+        //    return createdOrderDto;
+        //}
+
+        //the bellow one is working fine
+            public async Task<OrderDTO> AddOrderAsync(OrderDTO orderDto)
         {
             var bearerToken = _httpContextAccessor.HttpContext.Request.Headers["Authorization"].ToString().Replace("Bearer ", "");
-            // Validate customer
+
+            //Validate customer
             if (!await _customerService.CustomerExistsAsync(orderDto.CustomerId, bearerToken))
             {
                 throw new CustomerNotFoundException(orderDto.CustomerId);
+                //return NotFound($"Customer with ID {orderDto.CustomerId} does not exist.");
             }
 
-            // Group and sum quantities for duplicate product IDs
-            var groupedOrderItems = orderDto.OrderItems
-                .GroupBy(item => item.ProductId)
-                .Select(g => new OrderItemDTO
-                {
-                    ProductId = g.Key,
-                    Quantity = g.Sum(item => item.Quantity)
-                })
-                .ToList();
 
-            // Validate products and create order items
-            var orderItems = new List<OrderItem>();
-            foreach (var item in groupedOrderItems)
+            var existingOrder = (await _unitOfWork.Repository<Order>()
+    .GetAllAsync(
+        o => o.CustomerId == orderDto.CustomerId &&
+             o.OrderItems.Any(oi => orderDto.OrderItems.Select(i => i.ProductId).Contains(oi.ProductId)),
+        include: q => q.Include(o => o.OrderItems))) // Use the include parameter
+    .FirstOrDefault();
+
+            if (existingOrder != null)
             {
-                if (!await _productService.ProductExistsAsync(item.ProductId, bearerToken))
+                // Update quantities for existing products
+                foreach (var itemDto in orderDto.OrderItems)
                 {
-                    throw new ProductNotFoundException(item.ProductId);
+                    var existingItem = existingOrder.OrderItems.FirstOrDefault(oi => oi.ProductId == itemDto.ProductId);
+
+                    if (existingItem != null)
+                    {
+                        existingItem.Quantity += itemDto.Quantity; // Update the quantity
+                    }
+                    else
+                    {
+                        // Add new product to the existing order
+                        var (price, taxPercentage) = await _productService.GetProductDetailsAsync(itemDto.ProductId, bearerToken);
+                        existingOrder.OrderItems.Add(new OrderItem
+                        {
+                            ProductId = itemDto.ProductId,
+                            Quantity = itemDto.Quantity,
+                            UnitPrice = price
+                        });
+                    }
                 }
 
-                var (price, taxPercentage) = await _productService.GetProductDetailsAsync(item.ProductId, bearerToken);
-                orderItems.Add(new OrderItem
+                await CalculateOrderTotals(existingOrder, bearerToken);
+                _unitOfWork.Repository<Order>().Update(existingOrder);
+            }
+            else
+            {
+                // Group and sum quantities for duplicate product IDs
+                var groupedOrderItems = orderDto.OrderItems
+                    .GroupBy(item => item.ProductId)
+                    .Select(g => new OrderItemDTO
+                    {
+                        ProductId = g.Key,
+                        Quantity = g.Sum(item => item.Quantity)
+                    })
+                    .ToList();
+
+                // Validate products and create new order
+                var orderItems = new List<OrderItem>();
+                foreach (var item in groupedOrderItems)
                 {
-                    ProductId = item.ProductId,
-                    Quantity = item.Quantity,
-                    UnitPrice = price
-                });
+                    //if (!await _productService.ProductExistsAsync(item.ProductId, bearerToken))
+                    //{
+                    //    throw new ProductNotFoundException(item.ProductId);
+                    //}
+                    try { 
+                    var (price, taxPercentage) = await _productService.GetProductDetailsAsync(item.ProductId, bearerToken);
+                    orderItems.Add(new OrderItem
+                    {
+                        ProductId = item.ProductId,
+                        Quantity = item.Quantity,
+                        UnitPrice = price
+                    });
+
+                }
+    catch (ProductNotFoundException ex)
+    {
+                    // Handle the case where the product doesn't exist
+                    //_logger.LogWarning(ex.Message);
+                    throw new ProductNotFoundException(item.ProductId);
+                }
             }
 
-            var order = new Order
-            {
-                OrderId = Guid.NewGuid(),
-                CustomerId = orderDto.CustomerId,
-                OrderDate = DateTime.UtcNow,
-                DiscountPercentage = orderDto.DiscountPercentage,
-                OrderItems = orderItems
-            };
+                var order = new Order
+                {
+                    OrderId = Guid.NewGuid(),
+                    CustomerId = orderDto.CustomerId,
+                    OrderDate = DateTime.UtcNow,
+                    DiscountPercentage = orderDto.DiscountPercentage,
+                    OrderItems = orderItems
+                };
 
-            await CalculateOrderTotals(order, bearerToken);
-            await _unitOfWork.Repository<Order>().AddAsync(order);
+                await CalculateOrderTotals(order, bearerToken);
+                await _unitOfWork.Repository<Order>().AddAsync(order);
+                existingOrder = order; // Set this to return the newly created order
+            }
+
             await _unitOfWork.CompleteAsync();
-            var createdOrderDto = _mapper.Map<OrderDTO>(order);
-            return createdOrderDto;
+            return _mapper.Map<OrderDTO>(existingOrder);
         }
 
         public async Task<OrderDTO> UpdateOrderAsync(OrderDTO orderDto)
@@ -100,14 +299,13 @@ public class OrderServices : IOrderService
                 {
                     throw new Exception($"Order with ID {orderDto.OrderId} not found.");
                 }
-            // Get the token from the current HTTP context
+        
             var bearerToken = _httpContextAccessor.HttpContext.Request.Headers["Authorization"].ToString().Replace("Bearer ", "");
             // Validate customer
             if (!await _customerService.CustomerExistsAsync(orderDto.CustomerId,bearerToken))
                 {
                     throw new Exception($"Customer with ID {orderDto.CustomerId} does not exist.");
                 }
-
                 // Group and sum quantities for duplicate product IDs
                 var groupedOrderItems = orderDto.OrderItems
                     .GroupBy(item => item.ProductId)
@@ -117,7 +315,6 @@ public class OrderServices : IOrderService
                         Quantity = g.Sum(item => item.Quantity)
                     })
                     .ToList();
-
                 // Validate products and update order items
                 var updatedOrderItems = new List<OrderItem>();
                 foreach (var item in groupedOrderItems)
@@ -185,7 +382,8 @@ public class OrderServices : IOrderService
             }
             else
             {
-                throw new Exception($"Order with ID {id} not found.");
+                //throw new Exception($"Order with ID {id} not found.");
+                throw new OrderNotFoundException(id);
             }
         }
     }

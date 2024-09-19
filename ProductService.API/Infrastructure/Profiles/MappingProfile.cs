@@ -1,9 +1,9 @@
 ﻿using AutoMapper;
-using CustomerService.API.Infrastructure.DTOs;
-using CustomerService.API.Infrastructure.Entities;
+using ProductService.API.Infrastructure.DTOs;
+using ProductService.API.Infrastructure.Entities;
 using static System.Runtime.InteropServices.JavaScript.JSType;
 
-namespace CustomerService.API.Infrastructure.Profiles
+namespace ProductService.API.Infrastructure.Profiles
 {
     public class MappingProfile : Profile
     {

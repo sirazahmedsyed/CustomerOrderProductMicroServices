@@ -4,9 +4,9 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Linq.Expressions;
 using System.Threading.Tasks;
-using CustomerService.API.Infrastructure.DBContext;
+using ProductService.API.Infrastructure.DBContext;
 
-namespace CustomerService.API.Infrastructure.Repositories
+namespace ProductService.API.Infrastructure.Repositories
 {
     public class GenericRepository<T> : IGenericRepository<T> where T : class
     {

@@ -1,13 +1,13 @@
 ﻿using AutoMapper;
-using CustomerService.API.Infrastructure.DTOs;
-using CustomerService.API.Infrastructure.Entities;
-using CustomerService.API.Infrastructure.UnitOfWork;
+using ProductService.API.Infrastructure.DTOs;
+using ProductService.API.Infrastructure.Entities;
+using ProductService.API.Infrastructure.UnitOfWork;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 
-namespace CustomerService.API.Infrastructure.Services
+namespace ProductService.API.Infrastructure.Services
 {
     public class CustomerServices : ICustomerService
     {

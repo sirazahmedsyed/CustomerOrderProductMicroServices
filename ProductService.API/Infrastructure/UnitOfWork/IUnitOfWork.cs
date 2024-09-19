@@ -1,8 +1,8 @@
 ﻿using System;
 using System.Threading.Tasks;
-using CustomerService.API.Infrastructure.Repositories;
+using ProductService.API.Infrastructure.Repositories;
 
-namespace CustomerService.API.Infrastructure.UnitOfWork
+namespace ProductService.API.Infrastructure.UnitOfWork
 {
     public interface IUnitOfWork : IDisposable
     {

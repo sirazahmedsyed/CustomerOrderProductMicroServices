@@ -1,9 +1,9 @@
 using Microsoft.EntityFrameworkCore;
-using CustomerService.API.Infrastructure.DBContext;
-using CustomerService.API.Infrastructure.Profiles;
-using CustomerService.API.Infrastructure.Repositories;
-using CustomerService.API.Infrastructure.Services;
-using CustomerService.API.Infrastructure.UnitOfWork;
+using ProductService.API.Infrastructure.DBContext;
+using ProductService.API.Infrastructure.Profiles;
+using ProductService.API.Infrastructure.Repositories;
+using ProductService.API.Infrastructure.Services;
+using ProductService.API.Infrastructure.UnitOfWork;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
@@ -72,10 +72,10 @@ builder.Services.AddCors(options =>
 
 builder.Services.AddDbContext<ProductDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
+builder.Services.AddAutoMapper(typeof(MappingProfile));
 builder.Services.AddScoped(typeof(IGenericRepository<>), typeof(GenericRepository<>));
 builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
 builder.Services.AddScoped<IProductService, ProductServices>();
-builder.Services.AddAutoMapper(typeof(MappingProfile));
 builder.Services.AddControllers();
 var app = builder.Build();
 
@@ -87,10 +87,10 @@ if (app.Environment.IsDevelopment())
 }
 // Custom middleware to handle unauthorized access
 app.UseMiddleware<CustomAuthenticationMiddleware>();
+app.UseCors("CorsPolicy");
 //app.UseHttpsRedirection();
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
-app.UseCors("CorsPolicy");
 app.Run();
 

@@ -56,7 +56,7 @@ namespace OrderService.API.Infrastructure.Repositories
                     query = include(query);
                 }
 
-                return await query.FirstOrDefaultAsync(e => EF.Property<Guid>(e, "Id") == id);
+                return await query.FirstOrDefaultAsync(e => EF.Property<Guid>(e, "OrderId") == id);
             }
 
     public async Task<IEnumerable<T>> FindAsync(Expression<Func<T, bool>> predicate)

@@ -64,10 +64,11 @@ builder.Services.AddSwaggerGen();
 builder.Services.AddControllers();
 builder.Services.AddDbContext<OrderDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
+builder.Services.AddAutoMapper(typeof(MappingProfile));
 builder.Services.AddScoped(typeof(IGenericRepository<>), typeof(GenericRepository<>));
 builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
 builder.Services.AddScoped<IOrderService, OrderServices>();
-builder.Services.AddHttpClient<IProductService, ProductService>();
+//builder.Services.AddHttpClient<IProductService, ProductService>();
 builder.Services.AddHttpContextAccessor();
 
 var handler = new HttpClientHandler
@@ -77,12 +78,15 @@ var handler = new HttpClientHandler
 var client = new HttpClient(handler);
 builder.Services.AddHttpClient<ICustomerService, CustomerService>(client =>
 {
-    client.BaseAddress = new Uri("https://localhost:5001");
+    client.BaseAddress = new Uri("http://localhost:5000");
+    client.Timeout = TimeSpan.FromMinutes(5);
 });
-
-
-builder.Services.AddHttpClient<ICustomerService, CustomerService>();
-builder.Services.AddAutoMapper(typeof(MappingProfile));
+builder.Services.AddHttpClient<IProductService, ProductService>(client =>
+{
+    client.BaseAddress = new Uri("http://localhost:5000");
+    client.Timeout = TimeSpan.FromMinutes(5);
+});
+//builder.Services.AddHttpClient<ICustomerService, CustomerService>();
 builder.Services.AddControllers();
 // Configure the HTTP request pipeline.
 var app = builder.Build();

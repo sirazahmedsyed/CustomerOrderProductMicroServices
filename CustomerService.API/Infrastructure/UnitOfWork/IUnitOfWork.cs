@@ -1,7 +1,7 @@
-﻿using CustomerService.API.Infrastructure.Entities;
-using CustomerService.API.Infrastructure.Repositories;
+﻿using ProductService.API.Infrastructure.Entities;
+using ProductService.API.Infrastructure.Repositories;
 
-namespace CustomerService.API.Infrastructure.UnitOfWork
+namespace ProductService.API.Infrastructure.UnitOfWork
 {
     public interface IUnitOfWork 
     {

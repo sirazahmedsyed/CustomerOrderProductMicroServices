@@ -1,12 +1,12 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
-using CustomerService.API.Infrastructure.DTOs;
-using CustomerService.API.Infrastructure.Services;
+using ProductService.API.Infrastructure.DTOs;
+using ProductService.API.Infrastructure.Services;
 using System;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
 
-namespace CustomerService.API.Controllers
+namespace ProductService.API.Controllers
 {
     [Authorize]
     [ApiController]

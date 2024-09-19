@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Linq.Expressions;
 using System.Threading.Tasks;
 
-namespace CustomerService.API.Infrastructure.Repositories
+namespace ProductService.API.Infrastructure.Repositories
 {
     public interface IGenericRepository<TEntity> where TEntity : class
     {

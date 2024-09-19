@@ -19,6 +19,8 @@ namespace OrderService.API.Infrastructure.Services
         {
             var request = new HttpRequestMessage(HttpMethod.Get, $"{ProductApiBaseUrl}/?Id={productId}");
             request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", bearerToken);
+            // Log the request details
+            Console.WriteLine($"Request URL: {request.RequestUri}");
             var response = await _httpClient.SendAsync(request);
             if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
             {
@@ -46,11 +48,11 @@ namespace OrderService.API.Infrastructure.Services
                         var price = productElement.GetProperty("price").GetDecimal();
                         var taxPercentage = productElement.GetProperty("taxPercentage").GetDecimal();
 
-                        return (price, taxPercentage); 
+                        return (price, taxPercentage);
                     }
                 }
             }
-            throw new Exception($"Product with ID {productId} not found.");
+            throw new ProductNotFoundException(productId);
         }
     }
 }

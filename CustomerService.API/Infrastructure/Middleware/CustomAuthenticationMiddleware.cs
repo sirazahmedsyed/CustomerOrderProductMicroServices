@@ -1,4 +1,4 @@
-﻿namespace CustomerService.API.Infrastructure.Middleware
+﻿namespace ProductService.API.Infrastructure.Middleware
 {
     public class CustomAuthenticationMiddleware
     {

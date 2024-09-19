@@ -1,7 +1,7 @@
-﻿using CustomerService.API.Infrastructure.Entities;
+﻿using ProductService.API.Infrastructure.Entities;
 using Microsoft.EntityFrameworkCore;
 
-namespace CustomerService.API.Infrastructure.DBContext
+namespace ProductService.API.Infrastructure.DBContext
 {
     public class CustomerDbContext : DbContext
     {
