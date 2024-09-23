@@ -12,93 +12,107 @@
     //  "UpstreamPathTemplate": "/",
     //  "UpstreamHttpMethod": [ "GET", "POST", "PUT", "DELETE" ]
     //},
+    //{
+    //  "DownstreamPathTemplate": "/api/Customers",
+    //  "DownstreamScheme": "http",
+    //  "DownstreamHostAndPorts": [
+    //    {
+    //      "Host": "localhost",
+    //      "Port": 7229
+    //    }
+    //  ],
+    //  "UpstreamPathTemplate": "/api/Customers",
+    //  "UpstreamHttpMethod": [ "GET", "POST", "PUT", "DELETE" ],
+    //  "SwaggerKey": "CustomerService",
+    //  "AuthenticationOptions": {
+    //    "AuthenticationProviderKey": "Bearer"
+    //  },
+    //  "RateLimitOptions": {
+    //    "EnableRateLimiting": true,
+    //    "Period": "1s",
+    //    "PeriodTimespan": 1,
+    //    "Limit": 100
+    //  },
+    //  "RequestTransformationOptions": {
+    //    "AddHeadersToRequest": {
+    //      "Content-Type": "application/json"
+    //    }
+    //  }
+    //},
+
+    //{
+    //  "DownstreamPathTemplate": "/api/Customers/{id}",
+    //  "DownstreamScheme": "http",
+    //  "DownstreamHostAndPorts": [
+    //    {
+    //      "Host": "localhost",
+    //      "Port": 7229
+    //    }
+    //  ],
+    //  "UpstreamPathTemplate": "/api/Customers{id}",
+    //  "UpstreamHttpMethod": [ "GET", "POST", "PUT", "DELETE" ],
+    //  "SwaggerKey": "CustomerService",
+    //  "AuthenticationOptions": {
+    //    "AuthenticationProviderKey": "Bearer"
+    //  },
+    //  "RateLimitOptions": {
+    //    "EnableRateLimiting": true,
+    //    "Period": "1s",
+    //    "PeriodTimespan": 1,
+    //    "Limit": 100
+    //  },
+    //  "RequestTransformationOptions": {
+    //    "AddHeadersToRequest": {
+    //      "Content-Type": "application/json"
+    //    }
+    //  }
+    //},
     {
-      "DownstreamPathTemplate": "/api/Customers",
+      "DownstreamPathTemplate": "/api/Customers/{everything}",
       "DownstreamScheme": "http",
       "DownstreamHostAndPorts": [
         {
           "Host": "localhost",
-          "Port": 7229
+          "Port": 5001
         }
       ],
-      "UpstreamPathTemplate": "/api/Customers",
+      "UpstreamPathTemplate": "/api/Customers/{everything}",
       "UpstreamHttpMethod": [ "GET", "POST", "PUT", "DELETE" ],
-      "SwaggerKey": "CustomerService",
       "AuthenticationOptions": {
-        "AuthenticationProviderKey": "Bearer"
-      },
-      "RateLimitOptions": {
-        "EnableRateLimiting": true,
-        "Period": "1s",
-        "PeriodTimespan": 1,
-        "Limit": 100
-      },
-      "RequestTransformationOptions": {
-        "AddHeadersToRequest": {
-          "Content-Type": "application/json"
-        }
+        "AuthenticationProviderKey": "Bearer",
+        "AllowedScopes": []
       }
     },
-
-    {
-      "DownstreamPathTemplate": "/api/Customers/{id}",
-      "DownstreamScheme": "http",
-      "DownstreamHostAndPorts": [
-        {
-          "Host": "localhost",
-          "Port": 7229
-        }
-      ],
-      "UpstreamPathTemplate": "/api/Customers{id}",
-      "UpstreamHttpMethod": [ "GET", "POST", "PUT", "DELETE" ],
-      "SwaggerKey": "CustomerService",
-      "AuthenticationOptions": {
-        "AuthenticationProviderKey": "Bearer"
-      },
-      "RateLimitOptions": {
-        "EnableRateLimiting": true,
-        "Period": "1s",
-        "PeriodTimespan": 1,
-        "Limit": 100
-      },
-      "RequestTransformationOptions": {
-        "AddHeadersToRequest": {
-          "Content-Type": "application/json"
-        }
-      }
-    },
-
     {
       "DownstreamPathTemplate": "/api/Orders/{everything}",
       "DownstreamScheme": "http",
       "DownstreamHostAndPorts": [
         {
           "Host": "localhost",
-          "Port": 7218
+          "Port": 5002
         }
       ],
       "UpstreamPathTemplate": "/api/Orders/{everything}",
       "UpstreamHttpMethod": [ "GET", "POST", "PUT", "DELETE" ],
-      "SwaggerKey": "OrdersService",
       "AuthenticationOptions": {
-        "AuthenticationProviderKey": "Bearer"
+        "AuthenticationProviderKey": "Bearer",
+        "AllowedScopes": []
       }
     },
     {
       "DownstreamPathTemplate": "/api/Products/{everything}",
-
       "DownstreamScheme": "http",
       "DownstreamHostAndPorts": [
         {
           "Host": "localhost",
-          "Port": 7219
+          "Port": 5003
         }
       ],
       "UpstreamPathTemplate": "/api/Products/{everything}",
       "UpstreamHttpMethod": [ "GET", "POST", "PUT", "DELETE" ],
-      "SwaggerKey": "ProductsService",
       "AuthenticationOptions": {
-        "AuthenticationProviderKey": "Bearer"
+        "AuthenticationProviderKey": "Bearer",
+        "AllowedScopes": []
       },
 
       "RateLimitOptions": {
@@ -126,9 +140,10 @@
       "UpstreamHttpMethod": [ "GET", "POST", "PUT", "DELETE" ],
       "SwaggerKey": "AuthService"
     }
-  ],
+  ]
+}
 
-  "SwaggerEndPoints": [
+  /*"SwaggerEndPoints": [
     {
       "Key": "AuthService",
       "Config": [
@@ -181,4 +196,4 @@
       }
     }
   }
-}
+}*/
