@@ -1,13 +1,13 @@
 ﻿using AutoMapper;
-using ProductService.API.Infrastructure.DTOs;
-using ProductService.API.Infrastructure.Entities;
-using ProductService.API.Infrastructure.UnitOfWork;
+using CustomerService.API.Infrastructure.DTOs;
+using CustomerService.API.Infrastructure.Entities;
+using CustomerService.API.Infrastructure.UnitOfWork;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 
-namespace ProductService.API.Infrastructure.Services
+namespace CustomerService.API.Infrastructure.Services
 {
     public class CustomerServices : ICustomerService
     {
@@ -22,19 +22,19 @@ namespace ProductService.API.Infrastructure.Services
 
         public async Task<IEnumerable<CustomerDTO>> GetAllCustomersAsync()
         {
-            var customers = await _unitOfWork.Customers.GetAllAsync();
+            var customers = await _unitOfWork.Repository<Customer>().GetAllAsync();
             return _mapper.Map<IEnumerable<CustomerDTO>>(customers);
         }
 
         public async Task<CustomerDTO> GetCustomerByIdAsync(Guid customerId)
         {
-            var customer = await _unitOfWork.Customers.GetByIdAsync(customerId);
+            var customer = await _unitOfWork.Repository<Customer>().GetByIdAsync(customerId);
             return customer == null ? null : _mapper.Map<CustomerDTO>(customer);
         }
 
         public async Task<(bool IsSuccess, Guid CustomerId, CustomerDTO Customer, string Message)> AddCustomerAsync(CustomerDTO customerDto)
         {
-            var existingCustomer = await _unitOfWork.Customers.FindAsync(c => c.Email == customerDto.Email);
+            var existingCustomer = await _unitOfWork.Repository<Customer>().FindAsync(c => c.Email == customerDto.Email);
             if (existingCustomer.Any())
             {
                 return (false, Guid.Empty, null, "Customer with this email already exists.");
@@ -42,7 +42,7 @@ namespace ProductService.API.Infrastructure.Services
 
             var customerEntity = _mapper.Map<Customer>(customerDto);
             customerEntity.CustomerId = Guid.NewGuid();
-            await _unitOfWork.Customers.AddAsync(customerEntity);
+            await _unitOfWork.Repository<Customer>().AddAsync(customerEntity);
             await _unitOfWork.CompleteAsync();
 
             var addedCustomerDto = _mapper.Map<CustomerDTO>(customerEntity);
@@ -51,13 +51,12 @@ namespace ProductService.API.Infrastructure.Services
 
         public async Task<(bool IsSuccess, CustomerDTO Customer, string Message)> UpdateCustomerAsync(CustomerDTO customerDto)
         {
-            //var existingCustomer = await _unitOfWork.Customers.FindAsync(c => c.Email == customerDto.Email);
-            var existingCustomer = await _unitOfWork.Customers.FindAsync(c => c.CustomerId == customerDto.CustomerId);
+            var existingCustomer = await _unitOfWork.Repository<Customer>().FindAsync(c => c.CustomerId == customerDto.CustomerId);
             if (existingCustomer.Any())
             {
                 var customerToUpdate = existingCustomer.First();
                 _mapper.Map(customerDto, customerToUpdate);
-                _unitOfWork.Customers.Update(customerToUpdate);
+                _unitOfWork.Repository<Customer>().Update(customerToUpdate);
                 await _unitOfWork.CompleteAsync();
 
                 var updatedCustomerDto = _mapper.Map<CustomerDTO>(customerToUpdate);
@@ -69,10 +68,10 @@ namespace ProductService.API.Infrastructure.Services
 
         public async Task<(bool IsSuccess, string Message)> DeleteCustomerAsync(Guid customerId)
         {
-            var customer = await _unitOfWork.Customers.GetByIdAsync(customerId);
+            var customer = await _unitOfWork.Repository<Customer>().GetByIdAsync(customerId);
             if (customer != null)
             {
-                _unitOfWork.Customers.Remove(customer);
+                _unitOfWork.Repository<Customer>().Remove(customer);
                 await _unitOfWork.CompleteAsync();
                 return (true, "Customer deleted successfully.");
             }

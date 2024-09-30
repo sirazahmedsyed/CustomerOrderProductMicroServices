@@ -30,35 +30,3 @@ namespace OrderService.API.Infrastructure.Entities
         public ICollection<OrderItem> OrderItems { get; set; }
     }
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-//using System;
-//using System.Collections.Generic;
-
-//namespace OrderService.API.Infrastructure.Entities
-//{
-//    public class Order
-//    {
-//        public Guid OrderId { get; set; }
-//        public Guid CustomerId { get; set; } // Foreign key reference to Customer
-//        public DateTime OrderDate { get; set; }
-//        public decimal TotalAmount { get; set; }
-
-//        public ICollection<OrderItem> OrderItems { get; set; }
-//    }
-//}

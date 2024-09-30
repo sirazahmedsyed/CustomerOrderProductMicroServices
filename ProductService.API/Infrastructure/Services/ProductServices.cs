@@ -29,13 +29,33 @@ namespace ProductService.API.Infrastructure.Services
             var product = await _unitOfWork.Repository<Product>().GetByIdAsync(id);
             return _mapper.Map<ProductDTO>(product);
         }
-
-        public async Task<ProductDTO> AddProductAsync(ProductDTO productDto)
+        public async Task<(bool IsSuccess, ProductDTO Product, string Message)> AddProductAsync(ProductDTO productDto)
         {
+            // Check if the product already exists
+            var existingProduct = await _unitOfWork.Repository<Product>().GetByIdAsync(productDto.ProductId);
+
+            if (existingProduct != null)
+            {
+                // Return false to indicate failure and a message that a duplicate exists
+                return (false, null, "Duplicate product not allowed");
+            }
+
+            // Check for existing product by name (case-insensitive)
+            var existingProductByName = await _unitOfWork.Repository<Product>()
+                 .FindAsync(p => p.Name.ToLower() == productDto.Name.ToLower());
+            //.QueryAsync(p => p.Name.Equals(productDto.Name, StringComparison.OrdinalIgnoreCase)); // Assuming you have QueryAsync implemented
+
+            if (existingProductByName.Any())
+            {
+                return (false, null, "Duplicate product not allowed for product name.");
+            }
+
             var product = _mapper.Map<Product>(productDto);
             await _unitOfWork.Repository<Product>().AddAsync(product);
             await _unitOfWork.CompleteAsync();
-            return _mapper.Map<ProductDTO>(product);
+
+            // Return success along with the created product
+            return (true, _mapper.Map<ProductDTO>(product), "Product created successfully");
         }
 
         public async Task<ProductDTO> UpdateProductAsync(ProductDTO productDto)
@@ -56,7 +76,7 @@ namespace ProductService.API.Infrastructure.Services
             var product = await _unitOfWork.Repository<Product>().GetByIdAsync(id);
             if (product == null) return false;
 
-            _unitOfWork.Repository<Product>().Delete(product);
+            _unitOfWork.Repository<Product>().Remove(product);
             await _unitOfWork.CompleteAsync();
             return true;
         }

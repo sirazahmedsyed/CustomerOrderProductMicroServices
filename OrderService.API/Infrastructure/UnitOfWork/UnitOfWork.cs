@@ -2,8 +2,7 @@
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 using OrderService.API.Infrastructure.DBContext;
-using OrderService.API.Infrastructure.Repositories;
-using OrderService.API.Infrastructure.DBContext;
+using SharedRepository.Repositories;
 
 namespace OrderService.API.Infrastructure.UnitOfWork
 {

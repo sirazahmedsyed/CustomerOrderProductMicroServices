@@ -2,12 +2,12 @@
 using Microsoft.Extensions.Logging;
 using System;
 using System.Threading.Tasks;
-using ProductService.API.Infrastructure.DTOs;
-using ProductService.API.Infrastructure.Services;
+using CustomerService.API.Infrastructure.DTOs;
+using CustomerService.API.Infrastructure.Services;
 using Microsoft.AspNetCore.Authorization;
-using ProductService.API.Infrastructure.Entities;
+using CustomerService.API.Infrastructure.Entities;
 
-namespace ProductService.API.Controllers
+namespace CustomerService.API.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
@@ -24,7 +24,7 @@ namespace ProductService.API.Controllers
 
         [Authorize]
         [HttpGet]
-        [Route("")]
+        [Route("GetAllCustomers")]
         public async Task<IActionResult> GetAllCustomers()
         {
             try
@@ -40,8 +40,8 @@ namespace ProductService.API.Controllers
             }
         }
 
-        //[HttpGet]
-        [HttpGet("{id:Guid}")]
+        [HttpGet]
+        [Route("GetCustomerById/{id:guid}")]
         public async Task<IActionResult> GetCustomerById(Guid id)
         {
             try
@@ -63,7 +63,7 @@ namespace ProductService.API.Controllers
         }
 
         [HttpPost]
-        [Route("")]
+        [Route("CreateCustomer")]
         public async Task<IActionResult> CreateCustomer([FromBody] CustomerDTO customerDto)
         {
             if (!ModelState.IsValid)
@@ -99,7 +99,7 @@ namespace ProductService.API.Controllers
         }
 
         [HttpPut]
-        [Route("")]
+        [Route("UpdateCustomer")]
         public async Task<IActionResult> UpdateCustomer([FromBody] CustomerDTO customerDto)
         {
             if (!ModelState.IsValid)
@@ -129,7 +129,7 @@ namespace ProductService.API.Controllers
         }
 
         [HttpDelete]
-        [Route("{id:Guid}")]
+        [Route("DeleteCustomer/{id:Guid}")]
         public async Task<IActionResult> DeleteCustomer(Guid id)
         {
             try

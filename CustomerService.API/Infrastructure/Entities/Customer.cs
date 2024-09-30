@@ -1,7 +1,7 @@
 ﻿using System;
 using System.ComponentModel.DataAnnotations;
 
-namespace ProductService.API.Infrastructure.Entities
+namespace CustomerService.API.Infrastructure.Entities
 {
     public class Customer
     {

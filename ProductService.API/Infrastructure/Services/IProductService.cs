@@ -8,7 +8,8 @@ namespace ProductService.API.Infrastructure.Services
     {
         Task<IEnumerable<ProductDTO>> GetAllProductsAsync();
         Task<ProductDTO> GetProductByIdAsync(int id);
-        Task<ProductDTO> AddProductAsync(ProductDTO productDto);
+        //Task<ProductDTO> AddProductAsync(ProductDTO productDto);
+        Task<(bool IsSuccess, ProductDTO Product, string Message)> AddProductAsync(ProductDTO productDto);
         Task<ProductDTO> UpdateProductAsync(ProductDTO productDto); 
         Task<bool> DeleteProductAsync(int id);
     }

@@ -5,6 +5,7 @@ using ProductService.API.Infrastructure.Services;
 using System;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
+using ProductService.API.Infrastructure.Entities;
 
 namespace ProductService.API.Controllers
 {
@@ -23,7 +24,7 @@ namespace ProductService.API.Controllers
         }
 
         [HttpGet]
-        [Route("")]
+        [Route("GetAllProducts")]
         public async Task<IActionResult> GetAllProducts()
         {
             try
@@ -40,7 +41,7 @@ namespace ProductService.API.Controllers
         }
 
         [HttpGet]
-        [Route("{id:int}")]
+        [Route("GetProductById/{id:int}")]
         public async Task<IActionResult> GetProductById(int id)
         {
             try
@@ -60,9 +61,8 @@ namespace ProductService.API.Controllers
                 return StatusCode(500, "Internal server error");
             }
         }
-
         [HttpPost]
-        [Route("")]
+        [Route("CreateProduct")]
         public async Task<IActionResult> CreateProduct([FromBody] ProductDTO productDto)
         {
             if (!ModelState.IsValid)
@@ -73,19 +73,26 @@ namespace ProductService.API.Controllers
 
             try
             {
-                var createdProduct = await _productService.AddProductAsync(productDto);
-                _logger.LogInformation("Product with ID {productDto.ProductId} created", productDto.ProductId);
+                var (isSuccess, createdProduct, message) = await _productService.AddProductAsync(productDto);
+
+                if (!isSuccess)
+                {
+                    _logger.LogWarning("Duplicate product with ID {ProductId} not allowed", productDto.ProductId);
+                    return BadRequest(new { message, productId = productDto.ProductId });
+                }
+
+                _logger.LogInformation("Product with ID {ProductId} created", createdProduct.ProductId);
                 return Ok(createdProduct);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error occurred while creating product with ID {productDto.ProductId}", productDto.ProductId);
+                _logger.LogError(ex, "Error occurred while creating product with ID {ProductId}", productDto.ProductId);
                 return StatusCode(500, "Internal server error");
             }
         }
 
         [HttpPut]
-        [Route("")]
+        [Route("UpdateProduct")]
         public async Task<IActionResult> UpdateProduct([FromBody] ProductDTO productDto)
         {
             if (!ModelState.IsValid)
@@ -114,7 +121,7 @@ namespace ProductService.API.Controllers
         }
 
         [HttpDelete]
-        [Route("{id:int}")]
+        [Route("DeleteProduct/{id:int}")]
         public async Task<IActionResult> DeleteProduct(int id)
         {
             try

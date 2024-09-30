@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using ProductService.API.Infrastructure.DBContext;
-using ProductService.API.Infrastructure.Repositories;
+using SharedRepository.Repositories;
 
 namespace ProductService.API.Infrastructure.UnitOfWork
 {

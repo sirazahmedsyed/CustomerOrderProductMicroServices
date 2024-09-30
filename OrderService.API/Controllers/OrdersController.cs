@@ -24,7 +24,7 @@ namespace OrderService.API.Controllers
         }
 
         [HttpGet]
-        [Route("")]
+        [Route("GetAllOrders")]
         public async Task<IActionResult> GetAllOrders()
         {
             try
@@ -41,7 +41,7 @@ namespace OrderService.API.Controllers
         }
 
         [HttpGet]
-        [Route("{id:guid}")]
+        [Route("GetOrderById/{id:guid}")]
         public async Task<IActionResult> GetOrderById(Guid id)
         {
             try
@@ -62,8 +62,8 @@ namespace OrderService.API.Controllers
             }
         }
 
-       [HttpPost]
-        [Route("")]
+        [HttpPost]
+        [Route("CreateOrder")]
         public async Task<IActionResult> CreateOrder([FromBody] OrderDTO orderDto)
         {
             if (!ModelState.IsValid)
@@ -71,22 +71,17 @@ namespace OrderService.API.Controllers
                 _logger.LogWarning("Invalid model state for order creation");
                 return BadRequest(ModelState);
             }
-
             try
             {
-                var createdAtOrder = await _orderService.AddOrderAsync(orderDto);
+                var (isSuccess, errorMessage, createdOrder) = await _orderService.AddOrderAsync(orderDto);
+                if (!isSuccess)
+                {
+                    _logger.LogWarning(errorMessage);
+                    return NotFound(new { message = errorMessage });
+                }
+
                 _logger.LogInformation("Order with ID {OrderId} created", orderDto.OrderId);
-                return Ok(createdAtOrder);
-            }
-            catch (CustomerNotFoundException ex)
-            {
-                _logger.LogWarning(ex.Message);
-                return NotFound(new { message = ex.Message });
-            }
-            catch (ProductNotFoundException ex)
-            {
-                _logger.LogWarning(ex.Message);
-                return NotFound(new { message = ex.Message });
+                return Ok(createdOrder);
             }
             catch (Exception ex)
             {
@@ -96,8 +91,7 @@ namespace OrderService.API.Controllers
         }
 
         [HttpPut]
-        [Route("")]
-        [Consumes("application/json")]
+        [Route("UpdateOrder")]
         public async Task<IActionResult> UpdateOrder([FromBody] OrderDTO orderDto)
         {
             if (!ModelState.IsValid)
@@ -105,12 +99,17 @@ namespace OrderService.API.Controllers
                 _logger.LogWarning("Invalid model state for order update");
                 return BadRequest(ModelState);
             }
-
             try
             {
-                await _orderService.UpdateOrderAsync(orderDto);
+                var (isSuccess, errorMessage, updatedOrder) = await _orderService.UpdateOrderAsync(orderDto);
+                if (!isSuccess)
+                {
+                    _logger.LogWarning(errorMessage);
+                    return NotFound(new { message = errorMessage });
+                }
+
                 _logger.LogInformation("Order with ID {OrderId} updated", orderDto.OrderId);
-                return NoContent();
+                return Ok(updatedOrder);
             }
             catch (Exception ex)
             {
@@ -120,14 +119,14 @@ namespace OrderService.API.Controllers
         }
 
         [HttpDelete]
-        [Route("{id:guid}")]
+        [Route("DeleteOrder/{id:guid}")]
         public async Task<IActionResult> DeleteOrder(Guid id)
         {
             try
             {
                 _logger.LogInformation("Deleting order with ID {OrderId}", id);
-                await _orderService.DeleteOrderAsync(id);
-                return NoContent();
+                var deletedOrderId = await _orderService.DeleteOrderAsync(id);
+                return Ok(new { deletedOrderId }); 
             }
             catch (OrderNotFoundException ex)
             {
@@ -140,5 +139,6 @@ namespace OrderService.API.Controllers
                 return StatusCode(500, "Internal server error");
             }
         }
+
     }
 }

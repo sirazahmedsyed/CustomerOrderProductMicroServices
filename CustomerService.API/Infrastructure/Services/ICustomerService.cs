@@ -1,9 +1,9 @@
-﻿using ProductService.API.Infrastructure.DTOs;
+﻿using CustomerService.API.Infrastructure.DTOs;
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 
-namespace ProductService.API.Infrastructure.Services
+namespace CustomerService.API.Infrastructure.Services
 {
     public interface ICustomerService
     {

@@ -1,7 +1,7 @@
 ﻿using System;
 using System.ComponentModel.DataAnnotations;
 
-namespace ProductService.API.Infrastructure.DTOs
+namespace CustomerService.API.Infrastructure.DTOs
 {
     public class CustomerDTO
     {

@@ -62,7 +62,8 @@ namespace AuthService.API.Controllers
         }
 
         // [Authorize]
-        [HttpPut("update")]
+        [HttpPut]
+        [Route("update")]
         public async Task<IActionResult> UpdateUser([FromBody] UpdateUserDto updateUserDto)
         {
             var result = await _authService.UpdateUserAsync(updateUserDto);
@@ -74,7 +75,8 @@ namespace AuthService.API.Controllers
         }
 
         //[Authorize]
-        [HttpDelete("delete/{id}")]
+        [HttpDelete]
+        [Route("delete/{id}")]
         public async Task<IActionResult> DeleteUser(string id)
         {
             var result = await _authService.DeleteUserAsync(id);
@@ -86,7 +88,8 @@ namespace AuthService.API.Controllers
         }
 
         // [Authorize]
-        [HttpPost("logout")]
+        [HttpPost]
+        [Route("logout")]
         public async Task<IActionResult> Logout()
         {
             await _authService.LogoutAsync();

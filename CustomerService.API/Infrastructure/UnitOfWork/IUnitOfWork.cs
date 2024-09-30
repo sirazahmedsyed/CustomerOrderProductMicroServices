@@ -1,13 +1,11 @@
-﻿using ProductService.API.Infrastructure.Entities;
-using ProductService.API.Infrastructure.Repositories;
+﻿using CustomerService.API.Infrastructure.Entities;
+using SharedRepository.Repositories;
 
-namespace ProductService.API.Infrastructure.UnitOfWork
+namespace CustomerService.API.Infrastructure.UnitOfWork
 {
-    public interface IUnitOfWork 
+    public interface IUnitOfWork : IDisposable
     {
-       // IGenericRepository<T> Repository<T>() where T : class;
-        IGenericRepository<Customer> Customers { get; }
+        IGenericRepository<TEntity> Repository<TEntity>() where TEntity : class;
         Task<int> CompleteAsync();
-        void Dispose();
     }
 }

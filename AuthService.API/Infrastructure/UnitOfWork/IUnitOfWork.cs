@@ -1,4 +1,4 @@
-﻿using AuthService.API.Infrastructure.Repositories;
+﻿using SharedRepository.Repositories;
 
 namespace AuthService.API.Infrastructure.UnitOfWork
 {

@@ -1,6 +1,6 @@
-﻿using System;
+﻿using SharedRepository.Repositories;
+using System;
 using System.Threading.Tasks;
-using ProductService.API.Infrastructure.Repositories;
 
 namespace ProductService.API.Infrastructure.UnitOfWork
 {

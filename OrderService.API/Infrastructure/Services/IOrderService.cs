@@ -9,8 +9,9 @@ namespace OrderService.API.Infrastructure.Services
     {
         Task<IEnumerable<OrderDTO>> GetAllOrdersAsync();
         Task<OrderDTO> GetOrderByIdAsync(Guid id);
-        Task<OrderDTO> AddOrderAsync(OrderDTO orderDto);
-        Task<OrderDTO> UpdateOrderAsync(OrderDTO orderDto);
-        Task DeleteOrderAsync(Guid id);
+        Task<(bool Success, string ErrorMessage, OrderDTO Order)> AddOrderAsync(OrderDTO orderDto);
+
+        Task<(bool Success, string ErrorMessage, OrderDTO Order)> UpdateOrderAsync(OrderDTO orderDto);
+        Task<Guid> DeleteOrderAsync(Guid id);
     }
 }
