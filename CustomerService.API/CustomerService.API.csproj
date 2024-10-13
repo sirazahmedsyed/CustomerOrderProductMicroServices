@@ -21,6 +21,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\SharedRepository\SharedRepository.csproj" />
+    <ProjectReference Include="..\UserService.API\UserService.API.csproj" />
   </ItemGroup>
 
 </Project>

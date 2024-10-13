@@ -10,10 +10,10 @@ using System.Text;
 using System.Threading.Tasks;
 
 namespace SharedRepository.Repositories
-{
-    public static class SharedConfiguration
+{   
+    public static class AddSharedServices
     {
-        public static void AddSharedServices(this IServiceCollection services, IConfiguration configuration)
+        public static void AddAuthenticationSharedServices(this IServiceCollection services, IConfiguration configuration)
         {
             services.AddAuthentication(options =>
             {
@@ -34,7 +34,9 @@ namespace SharedRepository.Repositories
                     IssuerSigningKey = new SymmetricSecurityKey(Encoding.ASCII.GetBytes(configuration["Jwt:SecretKey"]))
                 };
             });
-
+        }
+        public static void AddSwaggerGenSharedServices(this IServiceCollection services, IConfiguration configuration)
+        {
             services.AddSwaggerGen(c =>
             {
                 c.SwaggerDoc("v1", new OpenApiInfo { Title = "API", Version = "v1" });
@@ -63,4 +65,4 @@ namespace SharedRepository.Repositories
             });
         }
     }
- }
+}

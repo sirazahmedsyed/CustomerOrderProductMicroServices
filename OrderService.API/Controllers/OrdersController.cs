@@ -4,6 +4,7 @@ using Microsoft.Extensions.Logging;
 using OrderService.API.Infrastructure.DTOs;
 using OrderService.API.Infrastructure.Entities;
 using OrderService.API.Infrastructure.Services;
+using SharedRepository.Authorization;
 using System;
 using System.Threading.Tasks;
 
@@ -64,6 +65,7 @@ namespace OrderService.API.Controllers
 
         [HttpPost]
         [Route("CreateOrder")]
+        [Authorize(Policy = Permissions.AddOrder)]
         public async Task<IActionResult> CreateOrder([FromBody] OrderDTO orderDto)
         {
             if (!ModelState.IsValid)

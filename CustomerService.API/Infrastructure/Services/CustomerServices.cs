@@ -2,10 +2,16 @@
 using CustomerService.API.Infrastructure.DTOs;
 using CustomerService.API.Infrastructure.Entities;
 using CustomerService.API.Infrastructure.UnitOfWork;
+using Dapper;
+using Npgsql;
 using System;
+using System.Data;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using static Microsoft.EntityFrameworkCore.DbLoggerCategory;
+using System.Data.Common;
+using static Microsoft.EntityFrameworkCore.DbLoggerCategory.Database;
 
 namespace CustomerService.API.Infrastructure.Services
 {
@@ -13,7 +19,7 @@ namespace CustomerService.API.Infrastructure.Services
     {
         private readonly IUnitOfWork _unitOfWork;
         private readonly IMapper _mapper;
-
+        private readonly string dbconnection= "Host=dpg-crvsqllds78s738bvq40-a.oregon-postgres.render.com;Database=user_usergroupdatabase;Username=user_usergroupdatabase_user;Password=X01Sf7FT75kppHe46dnULUCpe52s69ag";
         public CustomerServices(IUnitOfWork unitOfWork, IMapper mapper)
         {
             _unitOfWork = unitOfWork;
@@ -26,11 +32,11 @@ namespace CustomerService.API.Infrastructure.Services
             return _mapper.Map<IEnumerable<CustomerDTO>>(customers);
         }
 
-        public async Task<CustomerDTO> GetCustomerByIdAsync(Guid customerId)
-        {
-            var customer = await _unitOfWork.Repository<Customer>().GetByIdAsync(customerId);
-            return customer == null ? null : _mapper.Map<CustomerDTO>(customer);
-        }
+            public async Task<CustomerDTO> GetCustomerByIdAsync(Guid customerId)
+            {
+                var customer = await _unitOfWork.Repository<Customer>().GetByIdAsync(customerId);
+                return customer == null ? null : _mapper.Map<CustomerDTO>(customer);
+            }
 
         public async Task<(bool IsSuccess, Guid CustomerId, CustomerDTO Customer, string Message)> AddCustomerAsync(CustomerDTO customerDto)
         {
@@ -54,7 +60,7 @@ namespace CustomerService.API.Infrastructure.Services
             var existingCustomer = await _unitOfWork.Repository<Customer>().FindAsync(c => c.CustomerId == customerDto.CustomerId);
             if (existingCustomer.Any())
             {
-                var customerToUpdate = existingCustomer.First();
+                 var customerToUpdate = existingCustomer.First();
                 _mapper.Map(customerDto, customerToUpdate);
                 _unitOfWork.Repository<Customer>().Update(customerToUpdate);
                 await _unitOfWork.CompleteAsync();
@@ -62,7 +68,6 @@ namespace CustomerService.API.Infrastructure.Services
                 var updatedCustomerDto = _mapper.Map<CustomerDTO>(customerToUpdate);
                 return (true, updatedCustomerDto, "Customer updated successfully.");
             }
-
             return (false, null, "Customer not found.");
         }
 

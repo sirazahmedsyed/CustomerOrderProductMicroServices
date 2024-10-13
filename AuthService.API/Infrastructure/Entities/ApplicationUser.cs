@@ -7,7 +7,7 @@ namespace AuthService.API.Infrastructure.Entities
     {
         [Required]
         [StringLength(50, MinimumLength = 3)]
-        public string UserCode { get; set; }
+        public string UserNo { get; set; }
         
     }
 }

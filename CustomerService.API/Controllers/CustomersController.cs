@@ -6,6 +6,7 @@ using CustomerService.API.Infrastructure.DTOs;
 using CustomerService.API.Infrastructure.Services;
 using Microsoft.AspNetCore.Authorization;
 using CustomerService.API.Infrastructure.Entities;
+using SharedRepository.Authorization;
 
 namespace CustomerService.API.Controllers
 {
@@ -64,6 +65,8 @@ namespace CustomerService.API.Controllers
 
         [HttpPost]
         [Route("CreateCustomer")]
+        [Authorize(Policy = Permissions.AddCustomer)]
+        //[Authorize(Policy = "RequirePermissions")]
         public async Task<IActionResult> CreateCustomer([FromBody] CustomerDTO customerDto)
         {
             if (!ModelState.IsValid)

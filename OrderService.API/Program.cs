@@ -9,10 +9,12 @@ using Microsoft.IdentityModel.Tokens;
 using System.Text;
 using OrderService.API.Infrastructure.Middleware;
 using SharedRepository.Repositories;
+using SharedRepository.Authorization;
 
 var builder = WebApplication.CreateBuilder(args);
-
-builder.Services.AddSharedServices(builder.Configuration);
+builder.Services.AddSharedAuthorization(builder.Configuration);
+builder.Services.AddAuthenticationSharedServices(builder.Configuration);
+builder.Services.AddSwaggerGenSharedServices(builder.Configuration);
 
 builder.Services.AddControllers();
 builder.Services.AddDbContext<OrderDbContext>(options =>
@@ -32,8 +34,9 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 // Custom middleware to handle unauthorized access
-app.UseMiddleware<CustomAuthenticationMiddleware>();
 app.UseAuthentication();
+app.UseMiddleware<CustomAuthenticationMiddleware>();
+app.UsePermissionMiddleware();
 app.UseAuthorization();
 app.MapControllers();
 app.Run();

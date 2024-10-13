@@ -9,17 +9,18 @@ using Microsoft.IdentityModel.Tokens;
 using System.Text;
 using CustomerService.API.Infrastructure.Middleware;
 using SharedRepository.Repositories;
+using SharedRepository.Authorization;
+using Microsoft.AspNetCore.Authorization;
 
 var builder = WebApplication.CreateBuilder(args);
-
-builder.Services.AddSharedServices(builder.Configuration);
-//#endregion
+builder.Services.AddSharedAuthorization(builder.Configuration);
+builder.Services.AddAuthenticationSharedServices(builder.Configuration);
+builder.Services.AddSwaggerGenSharedServices(builder.Configuration);
 builder.Services.AddControllers();
 builder.Services.AddAutoMapper(typeof(MappingProfile));
 builder.Services.AddScoped(typeof(IGenericRepository<>), typeof(GenericRepository<>));
 builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
 builder.Services.AddScoped<ICustomerService, CustomerServices>();
-
 
 builder.Services.AddCors(options =>
 {
@@ -44,10 +45,11 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
     app.UseDeveloperExceptionPage();
 }
-// Custom middleware to handle unauthorized access
-app.UseMiddleware<CustomAuthenticationMiddleware>();
+
 app.UseCors("CorsPolicy");
 app.UseAuthentication();
+app.UseMiddleware<CustomAuthenticationMiddleware>();
+app.UsePermissionMiddleware();
 app.UseAuthorization();
 app.MapControllers();
 app.Run();

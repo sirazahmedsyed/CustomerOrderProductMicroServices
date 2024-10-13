@@ -9,7 +9,6 @@ namespace AuthService.API.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
-
     public class AuthController : ControllerBase
     {
         private readonly IAuthService _authService;
@@ -61,7 +60,6 @@ namespace AuthService.API.Controllers
             return BadRequest(result.Errors);
         }
 
-        // [Authorize]
         [HttpPut]
         [Route("update")]
         public async Task<IActionResult> UpdateUser([FromBody] UpdateUserDto updateUserDto)
@@ -74,7 +72,6 @@ namespace AuthService.API.Controllers
             return BadRequest(result.Errors);
         }
 
-        //[Authorize]
         [HttpDelete]
         [Route("delete/{id}")]
         public async Task<IActionResult> DeleteUser(string id)
@@ -87,7 +84,6 @@ namespace AuthService.API.Controllers
             return BadRequest(result.Errors);
         }
 
-        // [Authorize]
         [HttpPost]
         [Route("logout")]
         public async Task<IActionResult> Logout()
@@ -95,7 +91,6 @@ namespace AuthService.API.Controllers
             await _authService.LogoutAsync();
             return Ok(new { Message = "Logged out successfully" });
         }
-
         private IActionResult ErrorResponse(int statusCode, string message, string details)
         {
             return StatusCode(statusCode, new ErrorResponse
@@ -105,6 +100,5 @@ namespace AuthService.API.Controllers
                 Details = details
             });
         }
-
     }
 }

@@ -43,7 +43,6 @@ namespace ProductService.API.Infrastructure.Services
             // Check for existing product by name (case-insensitive)
             var existingProductByName = await _unitOfWork.Repository<Product>()
                  .FindAsync(p => p.Name.ToLower() == productDto.Name.ToLower());
-            //.QueryAsync(p => p.Name.Equals(productDto.Name, StringComparison.OrdinalIgnoreCase)); // Assuming you have QueryAsync implemented
 
             if (existingProductByName.Any())
             {

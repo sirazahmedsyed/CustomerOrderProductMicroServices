@@ -6,6 +6,7 @@ using System;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using ProductService.API.Infrastructure.Entities;
+using ProductService.API.Infrastructure.Authorization;
 
 namespace ProductService.API.Controllers
 {
@@ -63,6 +64,8 @@ namespace ProductService.API.Controllers
         }
         [HttpPost]
         [Route("CreateProduct")]
+        //[Authorize(Policy = Permissions.AddProducts)]
+        [Authorize(Policy = "RequirePermissions")]
         public async Task<IActionResult> CreateProduct([FromBody] ProductDTO productDto)
         {
             if (!ModelState.IsValid)
@@ -123,7 +126,7 @@ namespace ProductService.API.Controllers
         [HttpDelete]
         [Route("DeleteProduct/{id:int}")]
         public async Task<IActionResult> DeleteProduct(int id)
-        {
+        {   
             try
             {
                 _logger.LogInformation("Deleting product with ID {ProductId}", id);

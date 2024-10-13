@@ -10,7 +10,7 @@ namespace AuthService.API.Infrastructure.Profiles
             CreateMap<ApplicationUser, UserDto>()
                 .ForMember(dest => dest.Id, opt => opt.MapFrom(src => src.Id))
                 .ForMember(dest => dest.Username, opt => opt.MapFrom(src => src.UserName))
-                .ForMember(dest => dest.UserCode, opt => opt.MapFrom(src => src.UserCode));
+                .ForMember(dest => dest.UserNo, opt => opt.MapFrom(src => src.UserNo));
         }
     }
 }

@@ -8,13 +8,14 @@ using System.Threading.Tasks;
 using Dapper;
 using Microsoft.EntityFrameworkCore.Query;
 using Microsoft.Data.SqlClient;
+using Npgsql;
 namespace SharedRepository.Repositories
 {
     public class GenericRepository<TEntity> : IGenericRepository<TEntity> where TEntity : class
     {
         protected readonly DbContext _context;
         protected readonly DbSet<TEntity> _dbSet;
-
+        private readonly string dbconnection = "Host=dpg-crvsqllds78s738bvq40-a.oregon-postgres.render.com;Database=user_usergroupdatabase;Username=user_usergroupdatabase_user;Password=X01Sf7FT75kppHe46dnULUCpe52s69ag";
         public GenericRepository(DbContext context)
         {
             _context = context;
@@ -110,7 +111,10 @@ namespace SharedRepository.Repositories
 
         public async Task<bool> CustomerExistsAsync(Guid customerId)
         {
-            var connection = _context.Database.GetDbConnection(); // Get the underlying database connection
+            using var connection = new NpgsqlConnection(dbconnection);
+            connection.Open();
+            Console.WriteLine($"connection opened : {connection}");
+            //var connection = _context.Database.GetDbConnection(); // Get the underlying database connection
             var query = "SELECT COUNT(1) FROM \"public\".\"Customers\" WHERE \"CustomerId\" = @CustomerId";
             var result = await connection.QuerySingleAsync<int>(query, new { CustomerId = customerId });
             Console.WriteLine($"CustomerExistsAsync result: {result}");
@@ -121,7 +125,10 @@ namespace SharedRepository.Repositories
         {
             try
             {
-                var connection = _context.Database.GetDbConnection(); // Get the underlying database connection
+                using var connection = new NpgsqlConnection(dbconnection);
+                connection.Open();
+                Console.WriteLine($"connection opened : {connection}");
+                //var connection = _context.Database.GetDbConnection(); // Get the underlying database connection
                 var query = "SELECT \"Price\", \"TaxPercentage\" FROM \"public\".\"Products\" WHERE \"ProductId\" = @ProductId";
                 var result = await connection.QuerySingleOrDefaultAsync<(decimal Price, decimal TaxPercentage)>(query, new { ProductId = productId });
 

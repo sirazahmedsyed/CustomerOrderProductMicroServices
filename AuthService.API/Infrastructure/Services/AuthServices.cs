@@ -9,6 +9,8 @@ using System.Security.Claims;
 using System.Text;
 using System.Threading.Tasks;
 using AuthService.API.Infrastructure.Services;
+using Npgsql;
+using Dapper;
 
 namespace AuthService.API.Infrastructure.Services
 {
@@ -17,32 +19,32 @@ namespace AuthService.API.Infrastructure.Services
         private readonly UserManager<ApplicationUser> _userManager;
         private readonly SignInManager<ApplicationUser> _signInManager;
         private readonly IConfiguration _configuration;
-
+        private readonly string dbconnection = "Host=dpg-crvsqllds78s738bvq40-a.oregon-postgres.render.com;Database=user_usergroupdatabase;Username=user_usergroupdatabase_user;Password=X01Sf7FT75kppHe46dnULUCpe52s69ag";
         public AuthServices(UserManager<ApplicationUser> userManager, SignInManager<ApplicationUser> signInManager, IConfiguration configuration)
         {
             _userManager = userManager;
             _signInManager = signInManager;
             _configuration = configuration;
         }
-
+        
         public async Task<(bool Succeeded, string Token)> AuthenticateAsync(LoginDto loginDto)
         {
             var user = await _userManager.FindByNameAsync(loginDto.Username);
             if (user != null && await _userManager.CheckPasswordAsync(user, loginDto.Password))
             {
-                var token = GenerateJwtToken(user);
+                string token = await GenerateJwtTokenAsync(user);
                 return (true, token);
             }
             return (false, null);
         }
-
+        
         public async Task<(bool Succeeded, string UserId, string[] Errors)> CreateUserAsync(CreateUserDto createUserDto)
         {
             var user = new ApplicationUser
             {
                 UserName = createUserDto.Username,
                 Email = createUserDto.Email,
-                UserCode = createUserDto.UserCode
+                UserNo = createUserDto.UserNo
             };
 
             var result = await _userManager.CreateAsync(user, createUserDto.Password);
@@ -63,7 +65,7 @@ namespace AuthService.API.Infrastructure.Services
 
             user.UserName = updateUserDto.Username;
             user.Email = updateUserDto.Email;
-            user.UserCode = updateUserDto.UserCode;
+            user.UserNo = updateUserDto.UserNo;
 
             var result = await _userManager.UpdateAsync(user);
             if (result.Succeeded)
@@ -94,26 +96,42 @@ namespace AuthService.API.Infrastructure.Services
             await _signInManager.SignOutAsync();
         }
 
-        private string GenerateJwtToken(ApplicationUser user)
+        private async Task<string> GenerateJwtTokenAsync(ApplicationUser user)
         {
+            var connection = new NpgsqlConnection(dbconnection);
+            connection.Open();
+            Console.WriteLine($"connection opened : {connection}");
+            var result = await connection.QuerySingleAsync<string>($"SELECT \"UserNo\" FROM public.\"AspNetUsers\" WHERE \"UserName\" = '{user.UserName}'");
+            
+            Console.WriteLine($"connection created : {result}");
+
+            var userGroupNo = result switch
+            {
+                "USR001" => "1",
+                "USR002" => "2",
+                _ => "0" // default or fallback value
+            };
+
+            var claims = new List<Claim>
+            {
+            new Claim(ClaimTypes.NameIdentifier, user.Id),
+            new Claim(ClaimTypes.Name, user.UserName),
+            new Claim("UserGroupNo", userGroupNo) // Add UserGroupNo as a claim
+            };
+
+            var roles = await _userManager.GetRolesAsync(user);
+            claims.AddRange(roles.Select(role => new Claim(ClaimTypes.Role, role)));
+
             var securityKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_configuration["Jwt:SecretKey"]));
             var credentials = new SigningCredentials(securityKey, SecurityAlgorithms.HmacSha256);
 
-            var claims = new[]
-            {
-                new Claim(JwtRegisteredClaimNames.Sub, user.UserName),
-                new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
-                new Claim(ClaimTypes.NameIdentifier, user.Id)
-            };
-
             var token = new JwtSecurityToken(
-                issuer: _configuration["Jwt:Issuer"],
+                issuer:   _configuration["Jwt:Issuer"],
                 audience: _configuration["Jwt:Audience"],
-                claims: claims,
-                expires: DateTime.Now.AddMinutes(30),
+                claims,
+                expires: DateTime.Now.AddDays(10),
                 signingCredentials: credentials
             );
-
             return new JwtSecurityTokenHandler().WriteToken(token);
         }
     }
