@@ -25,44 +25,54 @@ namespace UserGroupService.API.Migrations
                 {
                     b.Property<int>("UserGroupNo")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
+                        .HasColumnType("integer")
+                        .HasColumnName("user_group_no");
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("UserGroupNo"));
 
                     b.Property<short>("AllowAddCustomer")
-                        .HasColumnType("int2");
+                        .HasColumnType("int2")
+                        .HasColumnName("allow_add_customer");
 
                     b.Property<short>("AllowAddOrder")
-                        .HasColumnType("int2");
+                        .HasColumnType("int2")
+                        .HasColumnName("allow_add_order");
 
                     b.Property<short>("AllowAddProducts")
-                        .HasColumnType("int2");
+                        .HasColumnType("int2")
+                        .HasColumnName("allow_add_products");
 
                     b.Property<short>("AllowAddUser")
-                        .HasColumnType("int2");
+                        .HasColumnType("int2")
+                        .HasColumnName("allow_add_user");
 
                     b.Property<short>("AllowAddUserGroup")
-                        .HasColumnType("int2");
+                        .HasColumnType("int2")
+                        .HasColumnName("allow_add_user_group");
 
                     b.Property<short>("InactiveFlag")
-                        .HasColumnType("int2");
+                        .HasColumnType("int2")
+                        .HasColumnName("inactive_flag");
 
                     b.Property<short>("IsAdmin")
-                        .HasColumnType("int2");
+                        .HasColumnType("int2")
+                        .HasColumnName("is_admin");
 
                     b.Property<string>("UserGroupForeignName")
                         .IsRequired()
                         .HasMaxLength(100)
-                        .HasColumnType("character varying(100)");
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("user_group_foreign_name");
 
                     b.Property<string>("UserGroupLocalName")
                         .IsRequired()
                         .HasMaxLength(100)
-                        .HasColumnType("character varying(100)");
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("user_group_local_name");
 
                     b.HasKey("UserGroupNo");
 
-                    b.ToTable("UserGroups");
+                    b.ToTable("user_groups", (string)null);
                 });
 #pragma warning restore 612, 618
         }

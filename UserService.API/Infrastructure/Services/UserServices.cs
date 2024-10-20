@@ -38,7 +38,7 @@ namespace UserService.API.Infrastructure.Services
 
             // Check if a user with the same email already exists
             var userExists = await connection.QuerySingleOrDefaultAsync<int>(
-                $"SELECT COUNT(*) FROM public.\"Users\" WHERE \"Email\" = '{userDto.Email}'");
+                $"SELECT COUNT(*) FROM public.users WHERE email = '{userDto.Email}'");
 
             if (userExists > 0)
             {
@@ -47,7 +47,7 @@ namespace UserService.API.Infrastructure.Services
 
             // Check if the UserGroupNo exists
             var userGroupNoExists = await connection.QuerySingleOrDefaultAsync<int>(
-                $"SELECT \"UserGroupNo\" FROM public.\"UserGroups\" WHERE \"UserGroupNo\" = '{userDto.UserGroupNo}'");
+                $"SELECT user_group_no FROM user_groups WHERE user_group_no = '{userDto.UserGroupNo}'");
 
             if (userGroupNoExists == 0)
             {
@@ -65,8 +65,7 @@ namespace UserService.API.Infrastructure.Services
             connection.Open();
             Console.WriteLine($"connection opened : {connection}");
 
-            var existingUser = await connection.QuerySingleOrDefaultAsync<User>(
-            $"SELECT * FROM public.\"Users\" WHERE \"UserNo\" = '{userDto.UserNo}'");
+            var existingUser = await connection.QuerySingleOrDefaultAsync<User>($"SELECT * FROM users WHERE user_no = '{userDto.UserNo}'");
 
             if (existingUser == null)
             {
@@ -74,7 +73,7 @@ namespace UserService.API.Infrastructure.Services
             }
 
             var userGroupNoExists = await connection.QuerySingleOrDefaultAsync<int>(
-            $"SELECT \"UserGroupNo\" FROM public.\"UserGroups\" WHERE \"UserGroupNo\" = '{userDto.UserGroupNo}'");
+            $"SELECT user_group_no FROM user_groups WHERE user_group_no = '{userDto.UserGroupNo}'");
           
             if (userGroupNoExists == 0)
             {

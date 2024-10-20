@@ -5,6 +5,7 @@ namespace ProductService.API.Infrastructure.DTOs
 {
     public class ProductDTO
     {
+        [Required]
         public int ProductId { get; set; }
 
         [Required]

@@ -9,6 +9,7 @@ namespace UserGroupService.API.Infrastructure.Profiles
         public MappingProfile()
         {
             CreateMap<UserGroup, UserGroupDTO>();
+            CreateMap<UserGroup, CreateUserGroupDTO>();
             CreateMap<CreateUserGroupDTO, UserGroup>();
             CreateMap<UpdateUserGroupDTO, UserGroup>()
                 .ForAllMembers(opts => opts.Condition((src, dest, srcMember) => srcMember != null));

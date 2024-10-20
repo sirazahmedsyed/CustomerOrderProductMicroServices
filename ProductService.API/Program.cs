@@ -10,27 +10,11 @@ using System.Text;
 using ProductService.API.Infrastructure.Middleware;
 using SharedRepository.Repositories;
 using SharedRepository.Authorization;
-using ProductService.API.Infrastructure.Authorization;
 using System.Net;
 using Microsoft.AspNetCore.Authorization;
 
 var builder = WebApplication.CreateBuilder(args);
 
-//builder.Services.AddAuthorization(options =>
-//{
-//    options.AddPolicy(Permissions.AddUser, policy => policy.Requirements.Add(new PermissionRequirement(Permissions.AddUser)));
-//    options.AddPolicy(Permissions.AddUserGroup, policy => policy.Requirements.Add(new PermissionRequirement(Permissions.AddUserGroup)));
-//    options.AddPolicy(Permissions.AddCustomer, policy => policy.Requirements.Add(new PermissionRequirement(Permissions.AddCustomer)));
-//    options.AddPolicy(Permissions.AddProducts, policy => policy.Requirements.Add(new PermissionRequirement(Permissions.AddProducts)));
-//    options.AddPolicy(Permissions.AddOrder, policy => policy.Requirements.Add(new PermissionRequirement(Permissions.AddOrder)));
-//});
-
-
-//builder.Services.AddAuthorization(options =>
-//{
-//    options.AddPolicy("RequirePermissions", policy =>
-//        policy.Requirements.Add(new PermissionRequirement(Permissions.AddProducts)));
-//});
 builder.Services.AddSharedAuthorization(builder.Configuration);
 builder.Services.AddAuthenticationSharedServices(builder.Configuration);
 builder.Services.AddSwaggerGenSharedServices(builder.Configuration);
@@ -40,7 +24,6 @@ builder.Services.AddAutoMapper(typeof(MappingProfile));
 builder.Services.AddScoped(typeof(IGenericRepository<>), typeof(GenericRepository<>));
 builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
 builder.Services.AddScoped<IProductService, ProductServices>();
-//builder.Services.AddScoped<IAuthorizationHandler, PermissionHandler>();
 
 builder.Services.AddCors(options =>
 {

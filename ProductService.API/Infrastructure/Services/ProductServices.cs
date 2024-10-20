@@ -1,4 +1,6 @@
 ﻿using AutoMapper;
+using Dapper;
+using Npgsql;
 using ProductService.API.Infrastructure.DTOs;
 using ProductService.API.Infrastructure.Entities;
 using ProductService.API.Infrastructure.UnitOfWork;
@@ -11,7 +13,7 @@ namespace ProductService.API.Infrastructure.Services
     {
         private readonly IUnitOfWork _unitOfWork;
         private readonly IMapper _mapper;
-
+        private readonly string dbconnection = "Host=dpg-crvsqllds78s738bvq40-a.oregon-postgres.render.com;Database=user_usergroupdatabase;Username=user_usergroupdatabase_user;Password=X01Sf7FT75kppHe46dnULUCpe52s69ag";
         public ProductServices(IUnitOfWork unitOfWork, IMapper mapper)
         {
             _unitOfWork = unitOfWork;
@@ -29,22 +31,16 @@ namespace ProductService.API.Infrastructure.Services
             var product = await _unitOfWork.Repository<Product>().GetByIdAsync(id);
             return _mapper.Map<ProductDTO>(product);
         }
+
         public async Task<(bool IsSuccess, ProductDTO Product, string Message)> AddProductAsync(ProductDTO productDto)
         {
-            // Check if the product already exists
-            var existingProduct = await _unitOfWork.Repository<Product>().GetByIdAsync(productDto.ProductId);
+            var connection = new NpgsqlConnection(dbconnection);
+            connection.Open();
+            Console.WriteLine($"connection opened : {connection}");
 
-            if (existingProduct != null)
-            {
-                // Return false to indicate failure and a message that a duplicate exists
-                return (false, null, "Duplicate product not allowed");
-            }
+            var existingProductByName = await connection.QuerySingleOrDefaultAsync<string>($"SELECT name FROM products WHERE name = '{productDto.Name}'");
 
-            // Check for existing product by name (case-insensitive)
-            var existingProductByName = await _unitOfWork.Repository<Product>()
-                 .FindAsync(p => p.Name.ToLower() == productDto.Name.ToLower());
-
-            if (existingProductByName.Any())
+            if (existingProductByName!=null)
             {
                 return (false, null, "Duplicate product not allowed for product name.");
             }
@@ -53,17 +49,23 @@ namespace ProductService.API.Infrastructure.Services
             await _unitOfWork.Repository<Product>().AddAsync(product);
             await _unitOfWork.CompleteAsync();
 
-            // Return success along with the created product
             return (true, _mapper.Map<ProductDTO>(product), "Product created successfully");
         }
 
         public async Task<ProductDTO> UpdateProductAsync(ProductDTO productDto)
         {
-            var existingProduct = await _unitOfWork.Repository<Product>().GetByIdAsync(productDto.ProductId);
+
+            var connection = new NpgsqlConnection(dbconnection);
+            connection.Open();
+            Console.WriteLine($"connection opened : {connection}");
+
+            var existingProduct = await connection.QuerySingleOrDefaultAsync<Product>($"SELECT * FROM products WHERE product_id = '{productDto.ProductId}'");
+
+            //var existingProduct = await _unitOfWork.Repository<Product>().GetByIdAsync(productDto.ProductId);
             if (existingProduct == null)
                 return null;
 
-            _mapper.Map(productDto, existingProduct); // Map updated fields from DTO to the entity
+            _mapper.Map(productDto, existingProduct); 
             _unitOfWork.Repository<Product>().Update(existingProduct);
             await _unitOfWork.CompleteAsync();
 

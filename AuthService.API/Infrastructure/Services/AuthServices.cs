@@ -105,7 +105,7 @@ namespace AuthService.API.Infrastructure.Services
             
             Console.WriteLine($"connection created : {result}");
 
-            var userGroupNo = result switch
+            var user_group_no = result switch
             {
                 "USR001" => "1",
                 "USR002" => "2",
@@ -116,7 +116,7 @@ namespace AuthService.API.Infrastructure.Services
             {
             new Claim(ClaimTypes.NameIdentifier, user.Id),
             new Claim(ClaimTypes.Name, user.UserName),
-            new Claim("UserGroupNo", userGroupNo) // Add UserGroupNo as a claim
+            new Claim("user_group_no", user_group_no) // Add UserGroupNo as a claim
             };
 
             var roles = await _userManager.GetRolesAsync(user);

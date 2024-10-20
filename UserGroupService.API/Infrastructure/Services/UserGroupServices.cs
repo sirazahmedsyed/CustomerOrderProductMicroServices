@@ -41,9 +41,8 @@ namespace UserGroupService.API.Infrastructure.Services
             connection.Open();
             Console.WriteLine($"connection opened : {connection}");
 
-            // Check if a UserGroup with the same data already exists
             var existingUserGroup = await connection.QuerySingleOrDefaultAsync<int>(
-            $"SELECT \"UserGroupNo\" FROM public.\"UserGroups\" WHERE \"UserGroupLocalName\" = '{userGroupDto.UserGroupLocalName}' AND \"UserGroupForeignName\" = '{userGroupDto.UserGroupLocalName}'");
+    $"SELECT user_group_no FROM user_groups WHERE user_group_local_name = '{userGroupDto.UserGroupLocalName}' AND user_group_foreign_name = '{userGroupDto.UserGroupForeignName}'");
 
             if (existingUserGroup != 0)
                 {
@@ -59,14 +58,11 @@ namespace UserGroupService.API.Infrastructure.Services
 
         public async Task<UserGroupDTO> UpdateUserGroupAsync(UpdateUserGroupDTO userGroupDto)
         {
-            //var existingUserGroup = await _unitOfWork.Repository<UserGroup>().GetByIdAsync(userGroupDto.UserGroupNo);
             var connection = new NpgsqlConnection(dbconnection);
             connection.Open();
             Console.WriteLine($"connection opened : {connection}");
 
-            var existingUserGroup = await connection.QuerySingleOrDefaultAsync<UserGroup>(
-        $"SELECT * FROM public.\"UserGroups\" WHERE \"UserGroupNo\" = '{userGroupDto.UserGroupNo}'");
-
+            var existingUserGroup = await connection.QuerySingleOrDefaultAsync<UserGroup>($"SELECT * FROM user_groups WHERE user_group_no = {userGroupDto.UserGroupNo}");
 
             if (existingUserGroup == null)
                 return null;

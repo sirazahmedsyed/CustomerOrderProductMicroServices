@@ -1,10 +1,10 @@
 ﻿using System;
 using System.ComponentModel.DataAnnotations;
-
 namespace ProductService.API.Infrastructure.Entities
 {
     public class Product
     {
+        [Key]
         public int ProductId { get; set; }
 
         [Required]
@@ -22,5 +22,6 @@ namespace ProductService.API.Infrastructure.Entities
 
         [Range(0, 100)]
         public decimal TaxPercentage { get; set; }
+        // Navigation property for the relationship with Purchase
     }
 }

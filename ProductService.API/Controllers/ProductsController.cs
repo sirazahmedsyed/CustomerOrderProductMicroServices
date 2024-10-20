@@ -6,7 +6,7 @@ using System;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using ProductService.API.Infrastructure.Entities;
-using ProductService.API.Infrastructure.Authorization;
+using SharedRepository.Authorization;
 
 namespace ProductService.API.Controllers
 {
@@ -64,8 +64,7 @@ namespace ProductService.API.Controllers
         }
         [HttpPost]
         [Route("CreateProduct")]
-        //[Authorize(Policy = Permissions.AddProducts)]
-        [Authorize(Policy = "RequirePermissions")]
+        [Authorize(Policy = Permissions.AddProducts)]
         public async Task<IActionResult> CreateProduct([FromBody] ProductDTO productDto)
         {
             if (!ModelState.IsValid)
@@ -80,8 +79,9 @@ namespace ProductService.API.Controllers
 
                 if (!isSuccess)
                 {
-                    _logger.LogWarning("Duplicate product with ID {ProductId} not allowed", productDto.ProductId);
-                    return BadRequest(new { message, productId = productDto.ProductId });
+                    //_logger.LogWarning("Duplicate product with ID {ProductId} not allowed", productDto.ProductId);
+                    _logger.LogWarning(message);
+                    return BadRequest(new { message, productName = productDto.Name });
                 }
 
                 _logger.LogInformation("Product with ID {ProductId} created", createdProduct.ProductId);

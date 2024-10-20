@@ -60,8 +60,8 @@ namespace SharedRepository.Authorization
                 return;
             }
 
-            var userGroupNoClaim = context.User.Claims.FirstOrDefault(c => c.Type == "UserGroupNo");
-            if (userGroupNoClaim == null || !int.TryParse(userGroupNoClaim.Value.Trim(), out int userGroupNo))
+            var userGroupNoClaim = context.User.Claims.FirstOrDefault(c => c.Type == "user_group_no");
+            if (userGroupNoClaim == null || !int.TryParse(userGroupNoClaim.Value.Trim(), out int user_group_no))
             {
                 Console.WriteLine($"Error parsing UserNo claim value: {userGroupNoClaim?.Value}");
                 return;
@@ -70,13 +70,24 @@ namespace SharedRepository.Authorization
             using var connection = new NpgsqlConnection(_dbconnection);
             await connection.OpenAsync();
 
-            var userGroup = await connection.QueryFirstOrDefaultAsync<UserGroup>(
-                "SELECT * FROM public.\"UserGroups\" WHERE \"UserGroupNo\" = @UserGroupNo",
-                new { UserGroupNo = userGroupNo });
+            //var userGroup = await connection.QueryFirstOrDefaultAsync<UserGroup>(
+            //    "SELECT * FROM public.\"UserGroups\" WHERE \"UserGroupNo\" = @UserGroupNo",
+            //    new { UserGroupNo = userGroupNo });
+
+            //var userGroup = await connection.QueryFirstOrDefaultAsync<UserGroup>(
+            //    "SELECT * FROM public.user_groups WHERE user_group_no = @user_group_no",
+            //    new { user_group_no = user_group_no });
+
+             var userGroup = await connection.QueryFirstOrDefaultAsync<UserGroup>($"SELECT * FROM user_groups WHERE user_group_no = '{user_group_no}'");
+
+            //var query = "SELECT * FROM public.user_groups WHERE user_group_no = @user_group_no";
+            //var userGroup = await connection.QueryFirstOrDefaultAsync<UserGroup>(query, new { user_group_no = user_group_no });
+
+            Console.WriteLine($"User Group Found: {userGroup}");
 
             if (userGroup != null)
             {
-                if (userGroup.IsAdmin)
+                if (userGroup.is_admin)
                 {
                     context.Succeed(requirement);
                     return;
@@ -84,11 +95,11 @@ namespace SharedRepository.Authorization
 
                 bool hasPermission = requirement.Permission switch
                 {
-                    Permissions.AddUser => userGroup.AllowAddUser,
-                    Permissions.AddUserGroup => userGroup.AllowAddUserGroup,
-                    Permissions.AddCustomer => userGroup.AllowAddCustomer,
-                    Permissions.AddProducts => userGroup.AllowAddProducts,
-                    Permissions.AddOrder => userGroup.AllowAddOrder,
+                    Permissions.AddUser => userGroup.allow_add_user,
+                    Permissions.AddUserGroup => userGroup.allow_add_user_group,
+                    Permissions.AddCustomer => userGroup.allow_add_customer,
+                    Permissions.AddProducts => userGroup.allow_add_products,
+                    Permissions.AddOrder => userGroup.allow_add_order,
                     _ => false
                 };
 
@@ -217,12 +228,12 @@ namespace SharedRepository.Authorization
 
     public class UserGroup
     {
-        public int UserGroupNo { get; set; }
-        public bool IsAdmin { get; set; }
-        public bool AllowAddUser { get; set; }
-        public bool AllowAddUserGroup { get; set; }
-        public bool AllowAddCustomer { get; set; }
-        public bool AllowAddProducts { get; set; }
-        public bool AllowAddOrder { get; set; }
+        public int user_group_no { get; set; }
+        public bool is_admin { get; set; }
+        public bool allow_add_user { get; set; }
+        public bool allow_add_user_group { get; set; }
+        public bool allow_add_customer { get; set; }
+        public bool allow_add_products { get; set; }
+        public bool allow_add_order { get; set; }
     }
 }

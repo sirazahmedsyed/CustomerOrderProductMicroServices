@@ -9,6 +9,7 @@ using Dapper;
 using Microsoft.EntityFrameworkCore.Query;
 using Microsoft.Data.SqlClient;
 using Npgsql;
+using static Microsoft.EntityFrameworkCore.DbLoggerCategory;
 namespace SharedRepository.Repositories
 {
     public class GenericRepository<TEntity> : IGenericRepository<TEntity> where TEntity : class
@@ -128,9 +129,8 @@ namespace SharedRepository.Repositories
                 using var connection = new NpgsqlConnection(dbconnection);
                 connection.Open();
                 Console.WriteLine($"connection opened : {connection}");
-                //var connection = _context.Database.GetDbConnection(); // Get the underlying database connection
-                var query = "SELECT \"Price\", \"TaxPercentage\" FROM \"public\".\"Products\" WHERE \"ProductId\" = @ProductId";
-                var result = await connection.QuerySingleOrDefaultAsync<(decimal Price, decimal TaxPercentage)>(query, new { ProductId = productId });
+                
+                var result = await connection.QuerySingleOrDefaultAsync<(decimal Price, decimal TaxPercentage)>($"SELECT price, tax_percentage FROM products WHERE product_id = '{productId}'");
 
                 if (result == default)
                 {
