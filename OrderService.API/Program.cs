@@ -23,10 +23,9 @@ builder.Services.AddAutoMapper(typeof(MappingProfile));
 builder.Services.AddScoped(typeof(IGenericRepository<>), typeof(GenericRepository<>));
 builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
 builder.Services.AddScoped<IOrderService, OrderServices>();
-//builder.Services.AddScoped<IProductHelper, ProductHelper>();
-//builder.Services.AddScoped<ICusotmerHelper, CustomerHelper>();
-//builder.Services.AddScoped<IOrderHelper, OrderHelper>();
-builder.Services.AddScoped<IDataAccessHelper, DataAccessHelper>();
+builder.Services.AddScoped<IProductHelper, ProductHelper>();
+builder.Services.AddScoped<ICusotmerHelper, CustomerHelper>();
+builder.Services.AddScoped<IOrderHelper, OrderHelper>();
 
 builder.Services.AddControllers();
 // Configure the HTTP request pipeline.
@@ -39,7 +38,7 @@ if (app.Environment.IsDevelopment())
 }
 // Custom middleware to handle unauthorized access
 app.UseAuthentication();
-//app.UseMiddleware<CustomAuthenticationMiddleware>();
+app.UseMiddleware<CustomAuthenticationMiddleware>();
 app.UsePermissionMiddleware();
 app.UseAuthorization();
 app.MapControllers();

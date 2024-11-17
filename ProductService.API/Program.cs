@@ -50,9 +50,10 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
     app.UseDeveloperExceptionPage();
 }
-
+// Custom middleware to handle unauthorized access
 app.UseCors("CorsPolicy");
 app.UseAuthentication();
+app.UseMiddleware<CustomAuthenticationMiddleware>();
 app.UsePermissionMiddleware();
 app.UseAuthorization();
 app.MapControllers();

@@ -12,7 +12,6 @@ using SharedRepository.Authorization;
 using Microsoft.AspNetCore.Authorization;
 using UserGroupService.API.Infrastructure.Services;
 using Microsoft.Extensions.Configuration;
-using GrpcClient;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -24,8 +23,7 @@ builder.Services.AddAutoMapper(typeof(MappingProfile));
 builder.Services.AddScoped(typeof(IGenericRepository<>), typeof(GenericRepository<>));
 builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
 builder.Services.AddScoped<IUserGroupService, UserGroupServices>();
-builder.Services.AddSingleton<InactiveFlagClient>();
-builder.Services.AddScoped<IDataAccessHelper, DataAccessHelper>();
+
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("CorsPolicy",
@@ -47,7 +45,7 @@ if (app.Environment.IsDevelopment())
 
 app.UseCors("CorsPolicy");
 app.UseAuthentication();
-//app.UseMiddleware<CustomAuthenticationMiddleware>();
+app.UseMiddleware<CustomAuthenticationMiddleware>();
 app.UsePermissionMiddleware();
 app.UseAuthorization();
 app.MapControllers();

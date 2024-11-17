@@ -66,6 +66,7 @@ namespace CustomerService.API.Controllers
         [HttpPost]
         [Route("CreateCustomer")]
         [Authorize(Policy = Permissions.AddCustomer)]
+        //[Authorize(Policy = "RequirePermissions")]
         public async Task<IActionResult> CreateCustomer([FromBody] CustomerDTO customerDto)
         {
             if (!ModelState.IsValid)

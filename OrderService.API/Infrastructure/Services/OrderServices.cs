@@ -2,7 +2,6 @@
 using Dapper;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Configuration.UserSecrets;
 using Npgsql;
 using OrderService.API.Infrastructure.DTOs;
 using OrderService.API.Infrastructure.Entities;
@@ -16,12 +15,16 @@ public class OrderServices : IOrderService
 {
         private readonly IUnitOfWork _unitOfWork;
         private readonly IMapper _mapper;
-        private readonly IDataAccessHelper _dataAccessHelper;
-        private readonly string dbconnection = "Host=dpg-csl1qfrv2p9s73ae0iag-a.oregon-postgres.render.com;Database=inventorymanagement_h8uy;Username=netconsumer;Password=UBmEj8MjJqg4zlimlXovbyt0bBDcrmiF";
-        public OrderServices(IUnitOfWork unitOfWork, IDataAccessHelper dataAccessHelper, IMapper mapper)
+        private readonly ICusotmerHelper _customerHelper;
+        private readonly IProductHelper _productHelper;
+        private readonly IOrderHelper _orderHelper;
+        private readonly string dbconnection = "Host=dpg-crvsqllds78s738bvq40-a.oregon-postgres.render.com;Database=user_usergroupdatabase;Username=user_usergroupdatabase_user;Password=X01Sf7FT75kppHe46dnULUCpe52s69ag";
+        public OrderServices(IUnitOfWork unitOfWork, ICusotmerHelper customerHelper, IProductHelper productHelper, IOrderHelper orderHelper, IMapper mapper)
         {
             _unitOfWork = unitOfWork;
-            _dataAccessHelper = dataAccessHelper;
+            _customerHelper = customerHelper;
+            _productHelper = productHelper;
+            _orderHelper = orderHelper;
             _mapper = mapper;
         }
 
@@ -41,9 +44,7 @@ public class OrderServices : IOrderService
 
         public async Task<(bool Success, string ErrorMessage, OrderDTO Order)> AddOrderAsync(OrderDTO orderDto)
         {
-           var customerExists = await _dataAccessHelper.ExistsAsync("customers", "customer_id", orderDto.CustomerId);
-
-            if (!await _dataAccessHelper.ExistsAsync("customers", "customer_id", orderDto.CustomerId))
+            if (!await _customerHelper.CustomerExistsAsync(orderDto.CustomerId))
             {
                 return (false, $"Customer with ID {orderDto.CustomerId} does not exist.", null);
             }
@@ -63,8 +64,7 @@ public class OrderServices : IOrderService
             {
                 if (!productDetailsCache.ContainsKey(item.ProductId))
                 {
-                    var productDetails = await _dataAccessHelper.GetProductDetailsAsync(item.ProductId);
-                    
+                    var productDetails = await _productHelper.GetProductDetailsAsync(item.ProductId);
                     if (productDetails.ProductId == null)
                     {
                         return (false, $"Product with ID {item.ProductId} does not exist.", null);
@@ -142,8 +142,7 @@ public class OrderServices : IOrderService
 
             foreach (var item in orderDto.OrderItems)
             {
-                
-                var stockUpdated = await _dataAccessHelper.UpdateProductStockByOrderedAsync(item.ProductId, -item.Quantity);
+                var stockUpdated = await _productHelper.UpdateProductStockByOrderedAsync(item.ProductId, -item.Quantity); 
                 if (!stockUpdated)
                 {
                     return (false, $"Failed to update stock for product ID {item.ProductId}.", null);
@@ -155,13 +154,12 @@ public class OrderServices : IOrderService
 
         public async Task<(bool Success, string ErrorMessage, OrderDTO Order)> UpdateOrderAsync(OrderDTO orderDto)
         {
-            if (!await _dataAccessHelper.ExistsAsync("orders", "order_id", orderDto.OrderId))
+            if (!await _orderHelper.OrderExistsAsync(orderDto.OrderId))
             {
                 return (false, $"Order with ID {orderDto.OrderId} does not exist.", null);
             }
 
-
-            if (!await _dataAccessHelper.ExistsAsync("customers", "customer_id", orderDto.CustomerId))
+            if (!await _customerHelper.CustomerExistsAsync(orderDto.CustomerId))
             {
                 return (false, $"Customer with ID {orderDto.CustomerId} does not exist.", null);
             }
@@ -182,9 +180,8 @@ public class OrderServices : IOrderService
             {
                 if (!productDetailsCache.ContainsKey(item.ProductId))
                 {
-                    var productDetails = await _dataAccessHelper.GetProductDetailsAsync(item.ProductId);
-                    
-                    if (productDetails.ProductId == 0)
+                    var productDetails = await _productHelper.GetProductDetailsAsync(item.ProductId);
+                    if (productDetails.ProductId == null)
                     {
                         return (false, $"Product with ID {item.ProductId} does not exist.", null);
                     }
@@ -227,7 +224,7 @@ public class OrderServices : IOrderService
                         UnitPrice = price,
                     });
                 }
-                await _dataAccessHelper.UpdateProductStockAsync(itemDto.ProductId, -itemDto.Quantity);
+                await _productHelper.UpdateProductStockAsync(itemDto.ProductId, -itemDto.Quantity);
             }
 
             CalculateOrderTotals(existingOrder, productDetailsCache);

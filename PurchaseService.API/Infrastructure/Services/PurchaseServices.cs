@@ -1,8 +1,6 @@
 ﻿using AutoMapper;
 using Dapper;
-using Microsoft.AspNetCore.Mvc;
 using Npgsql;
-using ProductService.API.Infrastructure.DTOs;
 using ProductService.API.Infrastructure.Entities;
 using PurchaseService.API.Infrastructure.DTOs;
 using PurchaseService.API.Infrastructure.Entities;
@@ -16,20 +14,15 @@ namespace PurchaseService.API.Infrastructure.Services
     public class PurchaseServices : IPurchaseService
     {
         private readonly IUnitOfWork _unitOfWork;
-        private readonly IDataAccessHelper _dataAccessHelper;
+        private readonly IProductHelper _productHelper;
         private readonly IMapper _mapper;
-        private readonly string dbconnection = "Host=dpg-csl1qfrv2p9s73ae0iag-a.oregon-postgres.render.com;Database=inventorymanagement_h8uy;Username=netconsumer;Password=UBmEj8MjJqg4zlimlXovbyt0bBDcrmiF";
-        public PurchaseServices(IUnitOfWork unitOfWork, IDataAccessHelper dataAccessHelper, IMapper mapper)
+        private readonly string dbconnection = "Host=dpg-crvsqllds78s738bvq40-a.oregon-postgres.render.com;Database=user_usergroupdatabase;Username=user_usergroupdatabase_user;Password=X01Sf7FT75kppHe46dnULUCpe52s69ag";
+
+        public PurchaseServices(IUnitOfWork unitOfWork, IProductHelper productHelper, IMapper mapper)
         {
             _unitOfWork = unitOfWork;
-            _dataAccessHelper = dataAccessHelper;
+            _productHelper = productHelper;
             _mapper = mapper;
-        }
-
-        public async Task<PurchaseDTO> GetPurchaseByIdAsync(int id)
-        {
-            var purchase = await _unitOfWork.Repository<Purchase>().GetByIdAsync(id);
-            return _mapper.Map<PurchaseDTO>(purchase);
         }
 
         public async Task<IEnumerable<PurchaseDTO>> GetAllPurchasesAsync()
@@ -43,20 +36,27 @@ namespace PurchaseService.API.Infrastructure.Services
             var connection = new NpgsqlConnection(dbconnection);
             connection.Open();
 
-            var purchaseExists = await _dataAccessHelper.ExistsAsync("purchases", "purchase_order_no", purchaseDto.PurchaseOrderNo);
+            var existingPurchase = await connection.QuerySingleOrDefaultAsync<string>(
+                $"SELECT purchase_order_no FROM purchases WHERE purchase_order_no = '{purchaseDto.PurchaseOrderNo}'");
 
-            if (purchaseExists)
+            if (existingPurchase != null)
             {
-                return (false, null, $"Duplicate purchase not allowed for this {purchaseDto.PurchaseOrderNo}.");
+                return (false, null, "Duplicate purchase order not allowed.");
             }
 
-            var productdetails = await _dataAccessHelper.GetProductDetailsAsync(purchaseDto.ProductId);
+            //var product = await _unitOfWork.Repository<Product>().GetByIdAsync(purchaseDto.ProductId);
+            //if (product == null)
+            //{
+            //    return (false, null, $"Product with ID {purchaseDto.ProductId} does not exist.");
+            //}
+
+            var productdetails = await _productHelper.GetProductDetailsAsync(purchaseDto.ProductId);
             if (productdetails.ProductId == default)
             {
                 return (false, null, $"Product with ID {purchaseDto.ProductId} does not exist.");
             }
 
-            var stockUpdated = await _dataAccessHelper.UpdateProductStockAsync(purchaseDto.ProductId, purchaseDto.Quantity);
+            var stockUpdated = await _productHelper.UpdateProductStockAsync(purchaseDto.ProductId, purchaseDto.Quantity);
             if (!stockUpdated)
             {
                 return (false, null, $"Failed to update product stock.");
@@ -65,60 +65,6 @@ namespace PurchaseService.API.Infrastructure.Services
             await _unitOfWork.Repository<Purchase>().AddAsync(purchase);
             await _unitOfWork.CompleteAsync();
             return (true, _mapper.Map<PurchaseDTO>(purchase), "Purchase created successfully");
-        }
-
-
-        public async Task<(bool IsSuccess, PurchaseDTO Purchase, string Message)> UpdatePurchaseAsync(PurchaseDTO updatedPurchaseDto)
-        {
-            var purchaseExists = await _dataAccessHelper.ExistsAsync("purchases", "purchase_order_no", updatedPurchaseDto.PurchaseOrderNo);
-           
-            if (!purchaseExists)
-            {
-                return (false, null, $"Purchase with ID {updatedPurchaseDto.PurchaseId} not found.");
-            }
-
-            var productDetails = await _dataAccessHelper.GetProductDetailsAsync(updatedPurchaseDto.ProductId);
-            if (productDetails.ProductId == default)
-            {
-                return (false, null, $"Product with ID {updatedPurchaseDto.ProductId} does not exist.");
-            }
-
-            var existingPurchase = await _unitOfWork.Repository<Purchase>().GetByIdAsync(updatedPurchaseDto.PurchaseOrderNo);
-
-            int quantityDifference = updatedPurchaseDto.Quantity - existingPurchase.Quantity;
-
-            var stockUpdated = await _dataAccessHelper.UpdateProductStockAsync(updatedPurchaseDto.ProductId, quantityDifference);
-            if (!stockUpdated)
-            {
-                return (false, null, "Failed to update product stock.");
-            }
-            
-            _mapper.Map(updatedPurchaseDto, existingPurchase);
-            _mapper.Map<Purchase>(updatedPurchaseDto);
-            _unitOfWork.Repository<Purchase>().Update(existingPurchase);
-            await _unitOfWork.CompleteAsync();
-
-            return (true, _mapper.Map<PurchaseDTO>(existingPurchase), "Purchase updated successfully");
-        }
-
-        public async Task<(bool IsSuccess, string Message)> DeletePurchaseAsync(int purchaseId)
-        {
-            var existingPurchase = await _dataAccessHelper.ExistsAsync("purchases", "purchase_id", purchaseId);
-            if (!existingPurchase)
-            {
-                return (false, $"Purchase with ID {purchaseId} not found.");
-            }
-            var purchase = await _unitOfWork.Repository<Purchase>().GetByIdAsync(purchaseId);
-
-            var stockUpdated = await _dataAccessHelper.UpdateProductStockAsync(purchase.ProductId, -purchase.Quantity);
-            if (!stockUpdated)
-            {
-                return (false, "Failed to update product stock.");
-            }
-
-            _unitOfWork.Repository<Purchase>().Remove(purchase);
-            await _unitOfWork.CompleteAsync();
-            return (true, "Purchase deleted successfully");
         }
     }
 }

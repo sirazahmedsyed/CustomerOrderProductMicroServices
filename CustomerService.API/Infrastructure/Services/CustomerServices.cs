@@ -19,7 +19,7 @@ namespace CustomerService.API.Infrastructure.Services
     {
         private readonly IUnitOfWork _unitOfWork;
         private readonly IMapper _mapper;
-        private readonly string dbconnection = "Host=dpg-csl1qfrv2p9s73ae0iag-a.oregon-postgres.render.com;Database=inventorymanagement_h8uy;Username=netconsumer;Password=UBmEj8MjJqg4zlimlXovbyt0bBDcrmiF";
+        private readonly string dbconnection= "Host=dpg-crvsqllds78s738bvq40-a.oregon-postgres.render.com;Database=user_usergroupdatabase;Username=user_usergroupdatabase_user;Password=X01Sf7FT75kppHe46dnULUCpe52s69ag";
         public CustomerServices(IUnitOfWork unitOfWork, IMapper mapper)
         {
             _unitOfWork = unitOfWork;
@@ -42,6 +42,24 @@ namespace CustomerService.API.Infrastructure.Services
         {
             var connection = new NpgsqlConnection(dbconnection);
             await connection.OpenAsync();
+
+            //var existingCustomer = await connection.QueryAsync<Customer>(
+            //    $"SELECT * FROM customers WHERE email = '{customerDto.Email}' AND phone_number = '{customerDto.PhoneNumber}'");
+
+
+            
+               
+            //Console.WriteLine($"Email: {existingCustomer.Any(c => c.Email == customerDto.Email)}, Phone: {existingCustomer.Any(c => c.PhoneNumber == customerDto.PhoneNumber)}");
+            //var existingCustomer = await _unitOfWork.Repository<Customer>().FindAsync(c => c.Email == customerDto.Email);
+
+            //if (existingCustomer.Any(c => c.Email != null)  && existingCustomer.Any(c => c.PhoneNumber != null))
+            //{
+            //    return (false, Guid.Empty, null, "Customer with this email and phone number already exists.");
+            //}
+            //if (existingCustomer.Any(c => c.PhoneNumber != null))
+            //{
+            //    return (false, Guid.Empty, null, "Customer with this phone number already exists.");
+            //}
 
             var existingCustomer = await connection.QueryAsync<Customer>(
                 $"SELECT Email FROM customers WHERE email = '{customerDto.Email}'");

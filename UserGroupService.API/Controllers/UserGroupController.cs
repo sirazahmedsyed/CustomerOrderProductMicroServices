@@ -99,8 +99,8 @@ namespace UserGroupService.API.Controllers
                 var updatedUserGroup = await _userGroupService.UpdateUserGroupAsync(userGroupDto);
                 if (updatedUserGroup == null)
                 {
-                    _logger.LogWarning($"User group with ID {userGroupDto.UserGroupNo} not found or is inactive");
-                    return NotFound($"User group with ID {userGroupDto.UserGroupNo} not found or is inactive.");
+                    _logger.LogWarning($"User group with ID {userGroupDto.UserGroupNo} not found");
+                    return NotFound($"User group with ID {userGroupDto.UserGroupNo} not found.");
                 }
                 _logger.LogInformation($"User group with ID {userGroupDto.UserGroupNo} updated");
                 return Ok(updatedUserGroup);
@@ -136,3 +136,128 @@ namespace UserGroupService.API.Controllers
     }
 }
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+//using Microsoft.AspNetCore.Authorization;
+//using Microsoft.AspNetCore.Mvc;
+//using SharedRepository.Authorization;
+
+////using UserGroupService.API.Infrastructure.Authorization;
+//using UserGroupService.API.Infrastructure.DTOs;
+//using UserGroupService.API.Infrastructure.Services;
+
+//namespace UserGroupService.API.Controllers
+//{
+//    [ApiController]
+//    [Route("api/[controller]")]
+//    public class UserGroupController : ControllerBase
+//    {
+//        private readonly IUserGroupService _userGroupService;
+
+//        public UserGroupController(IUserGroupService userGroupService)
+//        {
+//            _userGroupService = userGroupService;
+//        }
+
+//        [HttpPost]
+//        [Authorize(Policy = Permissions.AddUserGroup)]
+//        public async Task<IActionResult> CreateUserGroup([FromBody] CreateUserGroupDTO userGroupDto)
+//        {
+//            if (!ModelState.IsValid)
+//            {
+//                return BadRequest(ModelState);
+//            }
+
+//            try
+//            {
+//                var createdUserGroup = await _userGroupService.CreateUserGroupAsync(userGroupDto);
+//                return CreatedAtAction(nameof(GetUserGroup), new { id = createdUserGroup.UserGroupNo }, createdUserGroup);
+//            }
+//            catch (Exception ex)
+//            {
+//                // Log the exception
+//                return StatusCode(500, "An error occurred while creating the user group.");
+//            }
+//        }
+
+//        [HttpGet("{id}")]
+//        public async Task<IActionResult> GetUserGroup(int id)
+//        {
+//            var userGroup = await _userGroupService.GetUserGroupByIdAsync(id);
+//            if (userGroup == null)
+//                return NotFound();
+//            return Ok(userGroup);
+//        }
+
+//        [HttpGet]
+//        public async Task<IActionResult> GetAllUserGroups()
+//        {
+//            var userGroups = await _userGroupService.GetAllUserGroupsAsync();
+//            return Ok(userGroups);
+//        }
+
+//        [HttpPut("{id}")]
+//        public async Task<IActionResult> UpdateUserGroup([FromBody] CreateUserGroupDTO userGroupDto)
+//        {
+//            if (!ModelState.IsValid)
+//            {
+//                return BadRequest(ModelState);
+//            }
+
+//            try
+//            {
+//                var updatedUserGroup = await _userGroupService.UpdateUserGroupAsync(userGroupDto);
+//                if (updatedUserGroup == null)
+//                    return NotFound();
+//                return Ok(updatedUserGroup);
+//            }
+//            catch (Exception ex)
+//            {
+//                // Log the exception
+//                return StatusCode(500, "An error occurred while updating the user group.");
+//            }
+//        }
+
+//        [HttpDelete("{id}")]
+//        public async Task<IActionResult> DeleteUserGroup(int id)
+//        {
+//            try
+//            {
+//                var result = await _userGroupService.DeleteUserGroupAsync(id);
+//                if (!result)
+//                    return NotFound();
+//                return NoContent();
+//            }
+//            catch (Exception ex)
+//            {
+//                // Log the exception
+//                return StatusCode(500, "An error occurred while deleting the user group.");
+//            }
+//        }
+//    }
+//}
