@@ -45,7 +45,7 @@ if (app.Environment.IsDevelopment())
 
 app.UseCors("CorsPolicy");
 app.UseAuthentication();
-app.UseMiddleware<CustomAuthenticationMiddleware>();
+//app.UseMiddleware<CustomAuthenticationMiddleware>();
 app.UsePermissionMiddleware();
 app.UseAuthorization();
 app.MapControllers();

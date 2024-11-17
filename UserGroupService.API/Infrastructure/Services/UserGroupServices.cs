@@ -8,6 +8,7 @@ using System.Data.Common;
 using static Microsoft.EntityFrameworkCore.DbLoggerCategory.Database;
 using System.Data;
 using Dapper;
+using SharedRepository.Repositories;
 
 namespace UserGroupService.API.Infrastructure.Services
 {
@@ -15,12 +16,14 @@ namespace UserGroupService.API.Infrastructure.Services
     {
         private readonly IUnitOfWork _unitOfWork;
         private readonly IMapper _mapper;
-        private readonly string dbconnection = "Host=dpg-crvsqllds78s738bvq40-a.oregon-postgres.render.com;Database=user_usergroupdatabase;Username=user_usergroupdatabase_user;Password=X01Sf7FT75kppHe46dnULUCpe52s69ag";
+        private readonly IDataAccessHelper _dataAccessHelper;
+        private readonly string dbconnection = "Host=dpg-csl1qfrv2p9s73ae0iag-a.oregon-postgres.render.com;Database=inventorymanagement_h8uy;Username=netconsumer;Password=UBmEj8MjJqg4zlimlXovbyt0bBDcrmiF";
 
-        public UserGroupServices(IUnitOfWork unitOfWork, IMapper mapper)
+        public UserGroupServices(IUnitOfWork unitOfWork, IMapper mapper, IDataAccessHelper dataAccessHelper)
         {
             _unitOfWork = unitOfWork;
             _mapper = mapper;
+            _dataAccessHelper = dataAccessHelper;
         }
 
         public async Task<IEnumerable<UserGroupDTO>> GetAllUserGroupsAsync()
@@ -62,8 +65,17 @@ namespace UserGroupService.API.Infrastructure.Services
             connection.Open();
             Console.WriteLine($"connection opened : {connection}");
 
-            var existingUserGroup = await connection.QuerySingleOrDefaultAsync<UserGroup>($"SELECT * FROM user_groups WHERE user_group_no = {userGroupDto.UserGroupNo}");
+            // Get inactive_flag using gRPC client through DataAccessHelper
+            var inactiveFlag = await _dataAccessHelper.GetInactiveFlagFromGrpcAsync(userGroupDto.UserGroupNo);
+            Console.WriteLine($"User group IN ACTIVE VALUE { inactiveFlag}");
 
+            if (!inactiveFlag)
+            {
+                Console.WriteLine("User group is not active, cannot update.");
+                return null;
+            }
+                
+            var existingUserGroup = await connection.QuerySingleOrDefaultAsync<UserGroup>($"SELECT * FROM user_groups WHERE user_group_no = {userGroupDto.UserGroupNo}");
             if (existingUserGroup == null)
                 return null;
 
