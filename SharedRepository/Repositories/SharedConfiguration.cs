@@ -1,6 +1,9 @@
 ﻿using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using System;
@@ -33,6 +36,84 @@ namespace SharedRepository.Repositories
                     ValidAudience = configuration["Jwt:Audience"],
                     IssuerSigningKey = new SymmetricSecurityKey(Encoding.ASCII.GetBytes(configuration["Jwt:SecretKey"]))
                 };
+
+                var loggerFactory = services.BuildServiceProvider().GetRequiredService<ILoggerFactory>();
+                var logger = loggerFactory.CreateLogger("JwtBearerEvents");
+
+                options.Events = new JwtBearerEvents
+                {
+                    OnAuthenticationFailed = async context =>
+                    {
+                        logger.LogWarning("Authentication failed: {Message}", context.Exception.Message);
+                        context.NoResult();
+                        context.Response.Clear();
+                        context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+                        context.Response.ContentType = "application/json";
+
+                        var response = new { message = "Unauthorized. Bearer token is missing or invalid." };
+                        await context.Response.WriteAsJsonAsync(response);
+                    },
+
+                    OnChallenge = async context =>
+                    {
+                        logger.LogWarning("Authorization challenge triggered");
+                        context.HandleResponse(); // Prevent default challenge response
+
+                        context.Response.Clear();
+                        context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+                        context.Response.ContentType = "application/json";
+
+                        var response = new { message = "Unauthorized. Bearer token is missing or invalid." };
+                        await context.Response.WriteAsJsonAsync(response);
+                    },
+
+                    OnMessageReceived = context =>
+                    {
+                        logger.LogInformation("JWT token received for validation");
+                        return Task.CompletedTask;
+                    },
+
+                    OnTokenValidated = context =>
+                    {
+                        logger.LogInformation("Token has been validated");
+                        return Task.CompletedTask;
+                    }
+                };
+
+
+                //var loggerFactory = services.BuildServiceProvider().GetRequiredService<ILoggerFactory>();
+                //var logger = loggerFactory.CreateLogger("JwtBearerEvents");
+
+                //    options.Events = new JwtBearerEvents
+                //    {
+                //        OnAuthenticationFailed = context =>
+                //        {
+                //            if (!context.Response.HasStarted)
+                //            {
+                //                logger.LogWarning("Unauthorized access attempt. Bearer token is missing or invalid.");
+                //                context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+                //                context.Response.ContentType = "application/json";
+                //                return context.Response.WriteAsync("{\"message\":\"Unauthorized. Bearer token is missing or invalid.\"}");
+                //            }
+                //            logger.LogWarning("Unauthorized access attempt. Bearer token is missing or invalid, but the response has already started.");
+                //            return Task.CompletedTask;
+                //        },
+                //        OnChallenge = context =>
+                //        {
+                //            if (!context.Response.HasStarted)
+                //            {
+                //                logger.LogWarning("Unauthorized access attempt. Bearer token is missing or invalid.");
+                //                context.HandleResponse();
+                //                context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+                //                context.Response.ContentType = "application/json";
+                //                return context.Response.WriteAsync("{\"message\":\"Unauthorized. Bearer token is missing or invalid.\"}");
+                //            }
+                //            logger.LogWarning("Unauthorized access attempt. Bearer token is missing or invalid, but the response has already started.");
+                //            return Task.CompletedTask;
+                //        }
+                //    };
+
+
             });
         }
         public static void AddSwaggerGenSharedServices(this IServiceCollection services, IConfiguration configuration)

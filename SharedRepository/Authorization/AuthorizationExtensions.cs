@@ -28,19 +28,6 @@ namespace SharedRepository.Authorization
                 options.AddPolicy(Permissions.AddProducts, policy => policy.Requirements.Add(new PermissionRequirement(Permissions.AddProducts)));
                 options.AddPolicy(Permissions.AddOrder, policy => policy.Requirements.Add(new PermissionRequirement(Permissions.AddOrder)));
             });
-            //services.AddScoped<IAuthorizationFilter, PermissionAuthorizationFilter>();
-            //services.AddControllers(options =>
-            //{
-            //    options.Filters.Add<PermissionAuthorizationFilter>();
-            //});
-
-            //services.AddScoped<PermissionAuthorizationFilter>();
-
-            //services.AddControllers(options =>
-            //{
-            //    options.Filters.Add<PermissionAuthorizationFilter>();
-            //});
-
         }
     }
 
@@ -70,19 +57,7 @@ namespace SharedRepository.Authorization
             using var connection = new NpgsqlConnection(_dbconnection);
             await connection.OpenAsync();
 
-            //var userGroup = await connection.QueryFirstOrDefaultAsync<UserGroup>(
-            //    "SELECT * FROM public.\"UserGroups\" WHERE \"UserGroupNo\" = @UserGroupNo",
-            //    new { UserGroupNo = userGroupNo });
-
-            //var userGroup = await connection.QueryFirstOrDefaultAsync<UserGroup>(
-            //    "SELECT * FROM public.user_groups WHERE user_group_no = @user_group_no",
-            //    new { user_group_no = user_group_no });
-
-             var userGroup = await connection.QueryFirstOrDefaultAsync<UserGroup>($"SELECT * FROM user_groups WHERE user_group_no = '{user_group_no}'");
-
-            //var query = "SELECT * FROM public.user_groups WHERE user_group_no = @user_group_no";
-            //var userGroup = await connection.QueryFirstOrDefaultAsync<UserGroup>(query, new { user_group_no = user_group_no });
-
+            var userGroup = await connection.QueryFirstOrDefaultAsync<UserGroup>($"SELECT * FROM user_groups WHERE user_group_no = '{user_group_no}'");
             Console.WriteLine($"User Group Found: {userGroup}");
 
             if (userGroup != null)
@@ -107,105 +82,9 @@ namespace SharedRepository.Authorization
                 {
                     context.Succeed(requirement);
                 }
-                //else
-                //{
-                //    // If not, fail the authorization
-                //    context.Fail();
-
-                //    var httpContext = context.Resource as Microsoft.AspNetCore.Http.HttpContext;
-                //    if (httpContext != null)
-                //    {
-                //        httpContext.Response.StatusCode = StatusCodes.Status403Forbidden;
-                //            await httpContext.Response.WriteAsync(System.Text.Json.JsonSerializer.Serialize(new
-                //            {
-                //                StatusCode = 403,
-                //                Message = "You do not have permission to access this resource."
-                //            }));
-                //    }
-                //}
             }
         }
     }
-
-    //public class PermissionAuthorizationFilter : IAuthorizationFilter
-    //{
-    //    private readonly IAuthorizationService _authorizationService;
-    //    private readonly ILogger<PermissionAuthorizationFilter> _logger;
-
-    //    public PermissionAuthorizationFilter(IAuthorizationService authorizationService, ILogger<PermissionAuthorizationFilter> logger)
-    //    {
-    //        _authorizationService = authorizationService;
-    //        _logger = logger;
-    //    }
-
-    //    public async void OnAuthorization(AuthorizationFilterContext context)
-    //    {
-    //        _logger.LogInformation("PermissionAuthorizationFilter.OnAuthorization method called");
-
-    //        var authorizeAttribute = context.ActionDescriptor.EndpointMetadata
-    //            .OfType<AuthorizeAttribute>()
-    //            .FirstOrDefault();
-
-    //        if (authorizeAttribute == null)
-    //        {
-    //            _logger.LogWarning("No AuthorizeAttribute found on the endpoint");
-    //            return;
-    //        }
-
-    //        var user = context.HttpContext.User;
-    //        var policy = authorizeAttribute.Policy;
-
-    //        _logger.LogInformation($"Authorizing user for policy: {policy}");
-
-    //        if (!string.IsNullOrEmpty(policy))
-    //        {
-    //            var authorizationResult = await _authorizationService.AuthorizeAsync(user, policy);
-
-    //            if (!authorizationResult.Succeeded)
-    //            {
-    //                _logger.LogWarning($"Authorization failed for policy: {policy}");
-    //                context.Result = new ObjectResult(new
-    //                {
-    //                    StatusCode = 403,
-    //                    Message = "You do not have permission to access this resource."
-    //                })
-    //                {
-    //                    StatusCode = StatusCodes.Status403Forbidden
-    //                };
-    //            }
-    //            else
-    //            {
-    //                _logger.LogInformation($"Authorization succeeded for policy: {policy}");
-    //            }
-    //        }
-    //    }
-    //}
-
-    //public async void OnAuthorization(AuthorizationFilterContext context)
-    //{
-    //    var authorizeAttribute = context.ActionDescriptor.EndpointMetadata
-    //        .OfType<AuthorizeAttribute>()
-    //        .FirstOrDefault();
-
-    //    if (authorizeAttribute == null)
-    //    {
-    //        return;
-    //    }
-
-    //    var user = context.HttpContext.User;
-    //    var policy = authorizeAttribute.Policy;
-
-    //    if (!string.IsNullOrEmpty(policy))
-    //    {
-    //        var authorizationResult = await _authorizationService.AuthorizeAsync(user, policy);
-
-    //        if (!authorizationResult.Succeeded)
-    //        {
-    //            context.Result = new ForbidResult();
-    //        }
-    //    }
-    //}
-    //}
 
     public class PermissionRequirement : IAuthorizationRequirement
     {
