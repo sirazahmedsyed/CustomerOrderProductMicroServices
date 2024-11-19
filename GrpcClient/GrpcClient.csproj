@@ -14,15 +14,17 @@
 			<PrivateAssets>all</PrivateAssets>
 			<IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
 		</PackageReference>
-	<!--<PackageReference Include="Swashbuckle.AspNetCore" Version="6.9.0" />
-		<PackageReference Include="Swashbuckle.AspNetCore.SwaggerGen" Version="6.9.0" />
-		-->
+	
 </ItemGroup>
 
 	<ItemGroup>
 		<Protobuf Include="..\GrpcService\Protos\InactiveFlagService.proto" GrpcServices="Client" />
 	</ItemGroup>
 
+	<ItemGroup>
+		<Protobuf Include="..\GrpcService\Protos\InactiveCustomerFlagService.proto" GrpcServices="Client" />
+	</ItemGroup>
+	
 	<ItemGroup>
 	  <Folder Include="Protos\" />
 	</ItemGroup>

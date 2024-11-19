@@ -10,6 +10,7 @@ using System.Text;
 using OrderService.API.Infrastructure.Middleware;
 using SharedRepository.Repositories;
 using SharedRepository.Authorization;
+using GrpcClient;
 
 var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddSharedAuthorization(builder.Configuration);
@@ -23,6 +24,8 @@ builder.Services.AddAutoMapper(typeof(MappingProfile));
 builder.Services.AddScoped(typeof(IGenericRepository<>), typeof(GenericRepository<>));
 builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
 builder.Services.AddScoped<IOrderService, OrderServices>();
+builder.Services.AddSingleton<InactiveFlagClient>();
+
 //builder.Services.AddScoped<IProductHelper, ProductHelper>();
 //builder.Services.AddScoped<ICusotmerHelper, CustomerHelper>();
 //builder.Services.AddScoped<IOrderHelper, OrderHelper>();

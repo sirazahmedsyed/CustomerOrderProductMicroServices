@@ -1,0 +1,19 @@
+syntax = "proto3";
+
+option csharp_namespace = "GrpcService";
+package inactiveflag;
+
+// Service definition
+service InactiveCustomerFlagService {
+  rpc GetInactiveCustomerFlag (InactiveCustomerFlagRequest) returns (InactiveCustomerFlagResponse);
+}
+
+// Request message containing the user group number
+message InactiveCustomerFlagRequest {
+  bytes customer_id = 1;
+}
+
+// Response message containing the inactive flag status
+message InactiveCustomerFlagResponse {
+  bool inactive_flag = 1;
+}

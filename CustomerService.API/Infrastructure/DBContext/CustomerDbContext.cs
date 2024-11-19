@@ -19,6 +19,7 @@ namespace CustomerService.API.Infrastructure.DBContext
                 entity.Property(e => e.LastName).HasColumnName("last_name");
                 entity.Property(e => e.Email).HasColumnName("email");
                 entity.Property(e => e.PhoneNumber).HasColumnName("phone_number");
+                entity.Property(e => e.InactiveFlag).HasColumnName("inactive_flag");
             });
         }
     }

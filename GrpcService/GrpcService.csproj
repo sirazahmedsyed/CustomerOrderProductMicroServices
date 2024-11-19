@@ -9,6 +9,10 @@
   <ItemGroup>
     <Protobuf Include="Protos\InactiveFlagService.proto" GrpcServices="Server" />
   </ItemGroup>
+	<ItemGroup>
+    <Protobuf Include="Protos\InactiveCustomerFlagService.proto" GrpcServices="Server" />
+  </ItemGroup>
+	
 
   <ItemGroup>
 		<PackageReference Include="Dapper" Version="2.1.35" />

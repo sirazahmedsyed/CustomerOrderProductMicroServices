@@ -31,9 +31,9 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ProductInventory.Shared", "
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "GRPC", "GRPC", "{7778A5D3-CD04-4DD4-B7DC-6593A54CD5B5}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GrpcClient", "GrpcClient\GrpcClient.csproj", "{9F2AA9BE-954F-4E3B-94A6-B5D26CD0AD4A}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "GrpcClient", "GrpcClient\GrpcClient.csproj", "{9F2AA9BE-954F-4E3B-94A6-B5D26CD0AD4A}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GrpcService", "GrpcService\GrpcService.csproj", "{2F779452-D48A-45A6-9A18-142343784471}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "GrpcService", "GrpcService\GrpcService.csproj", "{2F779452-D48A-45A6-9A18-142343784471}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

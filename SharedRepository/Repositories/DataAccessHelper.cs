@@ -67,6 +67,21 @@ namespace SharedRepository.Repositories
             }
         }
 
+        public async Task<bool> GetInactiveCustomerFlag(Guid CustomerId)
+        {
+            try
+            {
+                // Call the gRPC client to get inactive flag
+                var inactiveFlag = await _inactiveFlagClient.GetInactiveCustomerFlagAsync(CustomerId);
+                Console.WriteLine($"Retrieved inactive flag for customer {CustomerId}: {inactiveFlag}");
+                return inactiveFlag;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error getting inactive flag from gRPC service: {ex.Message}");
+                throw;
+            }
+        }
 
         public async Task<bool> UpdateProductStockAsync(int productId, int quantity)
         {

@@ -24,5 +24,8 @@ namespace CustomerService.API.Infrastructure.DTOs
         [Phone]
         [StringLength(20)]
         public string PhoneNumber { get; set; }
+
+        [Column(TypeName = "int2")]
+        public bool InactiveFlag { get; set; }
     }
 }

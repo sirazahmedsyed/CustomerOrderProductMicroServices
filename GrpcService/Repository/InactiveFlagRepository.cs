@@ -1,4 +1,5 @@
 ﻿using Dapper;
+using GrpcService;
 using Npgsql;
 
 namespace GrpcService.Repository
@@ -37,5 +38,31 @@ namespace GrpcService.Repository
                 throw;
             }
         }
+
+        public async Task<InactiveCustomerFlagResponse> GetInactiveCustomerFlagAsync(InactiveCustomerFlagRequest request)
+        {
+            try
+            {
+                using var connection = new NpgsqlConnection(_dbConnection);
+                await connection.OpenAsync();
+                _logger.LogInformation($"Database connection opened for Customer: {request.CustomerId}");
+                
+                var inactiveFlag = await connection.QuerySingleOrDefaultAsync<bool>($"select inactive_flag from customers where customer_id = '{new Guid(request.CustomerId.ToByteArray())}'");
+
+                _logger.LogInformation($"Retrieved inactive_flag: {inactiveFlag} for CustomerId: {request.CustomerId}");
+
+                return new InactiveCustomerFlagResponse
+                {
+
+                    InactiveFlag = inactiveFlag
+                };
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Error retrieving inactive_flag for customerId: {request.CustomerId}");
+                throw;
+            }
+        }
+
     }
 }

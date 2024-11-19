@@ -1,5 +1,6 @@
 ﻿using System;
 using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
 
 namespace CustomerService.API.Infrastructure.Entities
 {
@@ -24,5 +25,8 @@ namespace CustomerService.API.Infrastructure.Entities
         [Phone]
         [StringLength(12)]
         public string PhoneNumber { get; set; }
+
+        [Column(TypeName = "int2")]
+        public bool InactiveFlag { get; set; }
     }
 }

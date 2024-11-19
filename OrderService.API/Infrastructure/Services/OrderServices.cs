@@ -41,13 +41,16 @@ public class OrderServices : IOrderService
 
         public async Task<(bool Success, string ErrorMessage, OrderDTO Order)> AddOrderAsync(OrderDTO orderDto)
         {
-           var customerExists = await _dataAccessHelper.ExistsAsync("customers", "customer_id", orderDto.CustomerId);
-
             if (!await _dataAccessHelper.ExistsAsync("customers", "customer_id", orderDto.CustomerId))
             {
                 return (false, $"Customer with ID {orderDto.CustomerId} does not exist.", null);
             }
 
+            if (!await _dataAccessHelper.GetInactiveCustomerFlag(orderDto.CustomerId))
+            {
+                return (false, $"Customer with ID {orderDto.CustomerId} is not in active state", null);
+            }
+            
             var groupedOrderItems = orderDto.OrderItems
                 .GroupBy(item => item.ProductId)
                 .Select(g => new OrderItemDTO

@@ -13,5 +13,6 @@ namespace SharedRepository.Repositories
         Task<bool> UpdateProductStockByOrderedAsync(int productId, int quantity);
 
         Task<bool> GetInactiveFlagFromGrpcAsync(int userGroupNo);
+        Task<bool> GetInactiveCustomerFlag(Guid CustomerId);
     }
 }
