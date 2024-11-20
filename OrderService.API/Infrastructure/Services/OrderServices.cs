@@ -1,6 +1,7 @@
 ﻿using AutoMapper;
 using Dapper;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration.UserSecrets;
 using Npgsql;
@@ -12,8 +13,8 @@ using SharedRepository.Repositories;
 using System.Data.Common;
 namespace OrderService.API.Infrastructure.Services
 {
-public class OrderServices : IOrderService
-{
+    public class OrderServices : IOrderService
+    {
         private readonly IUnitOfWork _unitOfWork;
         private readonly IMapper _mapper;
         private readonly IDataAccessHelper _dataAccessHelper;
@@ -39,18 +40,18 @@ public class OrderServices : IOrderService
             return order == null ? null : _mapper.Map<OrderDTO>(order);
         }
 
-        public async Task<(bool Success, string ErrorMessage, OrderDTO Order)> AddOrderAsync(OrderDTO orderDto)
+        public async Task<IActionResult> AddOrderAsync(OrderDTO orderDto)
         {
             if (!await _dataAccessHelper.ExistsAsync("customers", "customer_id", orderDto.CustomerId))
             {
-                return (false, $"Customer with ID {orderDto.CustomerId} does not exist.", null);
+                return new BadRequestObjectResult(new { message = $"Customer with ID {orderDto.CustomerId} does not exist." });
             }
 
             if (!await _dataAccessHelper.GetInactiveCustomerFlag(orderDto.CustomerId))
             {
-                return (false, $"Customer with ID {orderDto.CustomerId} is not in active state", null);
+                return new BadRequestObjectResult(new { message = $"Customer with ID {orderDto.CustomerId} is not in active state." });
             }
-            
+
             var groupedOrderItems = orderDto.OrderItems
                 .GroupBy(item => item.ProductId)
                 .Select(g => new OrderItemDTO
@@ -67,10 +68,10 @@ public class OrderServices : IOrderService
                 if (!productDetailsCache.ContainsKey(item.ProductId))
                 {
                     var productDetails = await _dataAccessHelper.GetProductDetailsAsync(item.ProductId);
-                    
+
                     if (productDetails.ProductId == null)
                     {
-                        return (false, $"Product with ID {item.ProductId} does not exist.", null);
+                        return new BadRequestObjectResult(new { message = $"Product with ID {item.ProductId} does not exist." });
                     }
 
                     productDetailsCache[item.ProductId] = (productDetails.Price, productDetails.TaxPercentage);
@@ -80,7 +81,7 @@ public class OrderServices : IOrderService
                 var availableStock = productStockCache[item.ProductId];
                 if (availableStock < item.Quantity)
                 {
-                    return (false, $"Insufficient stock for product ID {item.ProductId}. Available: {availableStock}, Requested: {item.Quantity}", null);
+                    return new BadRequestObjectResult(new { message = $"Insufficient stock for product ID {item.ProductId}. Available: {availableStock}, Requested: {item.Quantity}" });
                 }
             }
 
@@ -130,7 +131,7 @@ public class OrderServices : IOrderService
                     };
                 }).ToList();
 
-                 newOrder = new Order
+                newOrder = new Order
                 {
                     OrderId = Guid.NewGuid(),
                     CustomerId = orderDto.CustomerId,
@@ -143,17 +144,17 @@ public class OrderServices : IOrderService
                 await _unitOfWork.Repository<Order>().AddAsync(newOrder);
             }
 
-            foreach (var item in orderDto.OrderItems)
+            foreach (var orderitem in orderDto.OrderItems)
             {
-                
-                var stockUpdated = await _dataAccessHelper.UpdateProductStockByOrderedAsync(item.ProductId, -item.Quantity);
+                var stockUpdated = await _dataAccessHelper.UpdateProductStockByOrderedAsync(orderitem.ProductId, -orderitem.Quantity);
                 if (!stockUpdated)
                 {
-                    return (false, $"Failed to update stock for product ID {item.ProductId}.", null);
+                    return new BadRequestObjectResult(new { message = $"Failed to update stock for product ID {orderitem.ProductId}." });
                 }
             }
+
             await _unitOfWork.CompleteAsync();
-            return (true, null, _mapper.Map<OrderDTO>(existingOrder ?? newOrder));
+            return new OkObjectResult(_mapper.Map<OrderDTO>(existingOrder ?? newOrder));
         }
 
         public async Task<(bool Success, string ErrorMessage, OrderDTO Order)> UpdateOrderAsync(OrderDTO orderDto)
@@ -186,7 +187,7 @@ public class OrderServices : IOrderService
                 if (!productDetailsCache.ContainsKey(item.ProductId))
                 {
                     var productDetails = await _dataAccessHelper.GetProductDetailsAsync(item.ProductId);
-                    
+
                     if (productDetails.ProductId == 0)
                     {
                         return (false, $"Product with ID {item.ProductId} does not exist.", null);
@@ -195,7 +196,7 @@ public class OrderServices : IOrderService
                     productStockCache[item.ProductId] = productDetails.Stock;
                 }
             }
-            
+
             var existingOrder = await _unitOfWork.Repository<Order>().GetByIdAsync(orderDto.OrderId, o => o.Include(oi => oi.OrderItems));
             existingOrder.OrderDate = DateTime.UtcNow;
             existingOrder.DiscountPercentage = orderDto.DiscountPercentage;
@@ -219,7 +220,7 @@ public class OrderServices : IOrderService
                 if (existingItem != null)
                 {
                     existingItem.Quantity = totalQuantity;
-                    existingItem.UnitPrice = price; 
+                    existingItem.UnitPrice = price;
                 }
                 else
                 {
@@ -246,7 +247,7 @@ public class OrderServices : IOrderService
             {
                 _unitOfWork.Repository<Order>().Remove(order);
                 await _unitOfWork.CompleteAsync();
-                return id; 
+                return id;
             }
             else
             {
@@ -254,9 +255,7 @@ public class OrderServices : IOrderService
             }
         }
 
-        private void CalculateOrderTotals(
-            Order order,
-            Dictionary<int, (decimal Price, decimal TaxPercentage)> productDetailsCache)
+        private void CalculateOrderTotals(Order order, Dictionary<int, (decimal Price, decimal TaxPercentage)> productDetailsCache)
         {
             decimal totalAmount = 0;
             foreach (var item in order.OrderItems)

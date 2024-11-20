@@ -63,6 +63,7 @@ namespace OrderService.API.Controllers
             }
         }
 
+
         [HttpPost]
         [Route("CreateOrder")]
         [Authorize(Policy = Permissions.AddOrder)]
@@ -75,15 +76,13 @@ namespace OrderService.API.Controllers
             }
             try
             {
-                var (isSuccess, errorMessage, createdOrder) = await _orderService.AddOrderAsync(orderDto);
-                if (!isSuccess)
-                {
-                    _logger.LogWarning(errorMessage);
-                    return NotFound(new { message = errorMessage });
+                var result = await _orderService.AddOrderAsync(orderDto);
+                if (result is BadRequestObjectResult badRequestResult) 
+                { 
+                    var errorMessage = badRequestResult.Value?.ToString(); 
+                    _logger.LogWarning(errorMessage); 
                 }
-
-                _logger.LogInformation("Order with ID {OrderId} created", orderDto.OrderId);
-                return Ok(createdOrder);
+                return result; 
             }
             catch (Exception ex)
             {
@@ -91,6 +90,37 @@ namespace OrderService.API.Controllers
                 return StatusCode(500, "Internal server error");
             }
         }
+
+
+
+        //[HttpPost]
+        //[Route("CreateOrder")]
+        //[Authorize(Policy = Permissions.AddOrder)]
+        //public async Task<IActionResult> CreateOrder([FromBody] OrderDTO orderDto)
+        //{
+        //    if (!ModelState.IsValid)
+        //    {
+        //        _logger.LogWarning("Invalid model state for order creation");
+        //        return BadRequest(ModelState);
+        //    }
+        //    try
+        //    {
+        //        var (isSuccess, errorMessage, createdOrder) = await _orderService.AddOrderAsync(orderDto);
+        //        if (!isSuccess)
+        //        {
+        //            _logger.LogWarning(errorMessage);
+        //            return NotFound(new { message = errorMessage });
+        //        }
+
+        //        _logger.LogInformation("Order with ID {OrderId} created", orderDto.OrderId);
+        //        return Ok(createdOrder);
+        //    }
+        //    catch (Exception ex)
+        //    {
+        //        _logger.LogError(ex, "Error occurred while creating order with ID {OrderId}", orderDto.OrderId);
+        //        return StatusCode(500, "Internal server error");
+        //    }
+        //}
 
         [HttpPut]
         [Route("UpdateOrder")]
