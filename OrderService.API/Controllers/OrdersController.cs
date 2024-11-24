@@ -1,12 +1,9 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.Extensions.Logging;
 using OrderService.API.Infrastructure.DTOs;
 using OrderService.API.Infrastructure.Entities;
 using OrderService.API.Infrastructure.Services;
 using SharedRepository.Authorization;
-using System;
-using System.Threading.Tasks;
 
 namespace OrderService.API.Controllers
 {
@@ -90,37 +87,6 @@ namespace OrderService.API.Controllers
                 return StatusCode(500, "Internal server error");
             }
         }
-
-
-
-        //[HttpPost]
-        //[Route("CreateOrder")]
-        //[Authorize(Policy = Permissions.AddOrder)]
-        //public async Task<IActionResult> CreateOrder([FromBody] OrderDTO orderDto)
-        //{
-        //    if (!ModelState.IsValid)
-        //    {
-        //        _logger.LogWarning("Invalid model state for order creation");
-        //        return BadRequest(ModelState);
-        //    }
-        //    try
-        //    {
-        //        var (isSuccess, errorMessage, createdOrder) = await _orderService.AddOrderAsync(orderDto);
-        //        if (!isSuccess)
-        //        {
-        //            _logger.LogWarning(errorMessage);
-        //            return NotFound(new { message = errorMessage });
-        //        }
-
-        //        _logger.LogInformation("Order with ID {OrderId} created", orderDto.OrderId);
-        //        return Ok(createdOrder);
-        //    }
-        //    catch (Exception ex)
-        //    {
-        //        _logger.LogError(ex, "Error occurred while creating order with ID {OrderId}", orderDto.OrderId);
-        //        return StatusCode(500, "Internal server error");
-        //    }
-        //}
 
         [HttpPut]
         [Route("UpdateOrder")]
