@@ -1,20 +1,20 @@
-﻿using System;
-using System.Threading.Tasks;
-using Dapper;
+﻿using Dapper;
 using GrpcClient;
+using GrpcService;
 using Npgsql;
 
 namespace SharedRepository.Repositories
 {
     public class DataAccessHelper : IDataAccessHelper
     {
-        //private readonly string _dbconnection;
         private readonly string _dbconnection = "Host=dpg-csl1qfrv2p9s73ae0iag-a.oregon-postgres.render.com;Database=inventorymanagement_h8uy;Username=netconsumer;Password=UBmEj8MjJqg4zlimlXovbyt0bBDcrmiF";
         private readonly InactiveFlagClient _inactiveFlagClient;
+        private readonly ProductDetailsClient _productDetailsClient;
 
-        public DataAccessHelper(InactiveFlagClient inactiveFlagClient)
+        public DataAccessHelper(InactiveFlagClient inactiveFlagClient, ProductDetailsClient productDetailsClient)
         {
             _inactiveFlagClient = inactiveFlagClient;
+            _productDetailsClient = productDetailsClient;
         }
 
         public async Task<bool> ExistsAsync(string tableName, string idColumn, object idValue)
@@ -30,23 +30,19 @@ namespace SharedRepository.Repositories
             return exists > 0;
         }
 
-        public async Task<(int ProductId, decimal Price, int Stock, decimal TaxPercentage)> GetProductDetailsAsync(int productId)
+
+        public async Task<ProductDetailsResponse> GetProductDetailsAsync(int productId)
         {
             try
             {
-                using var connection = new NpgsqlConnection(_dbconnection);
-                await connection.OpenAsync();
-                Console.WriteLine($"Connection opened: {connection}");
-
-                var query = "SELECT product_id, price, stock, tax_percentage FROM products WHERE product_id = @ProductId";
-                var result = await connection.QuerySingleOrDefaultAsync<(int ProductId, decimal Price, int Stock, decimal TaxPercentage)>(
-                    query, new { ProductId = productId });
-
-                return result == default ? (0, 0, 0, 0) : result;
+                // Call the gRPC client to get product details
+                var productDetails = await _productDetailsClient.GetProductDetailsAsync(productId);
+                Console.WriteLine($"Retrieved product details for product {productId}: {productDetails}");
+                return productDetails;
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Error retrieving product details: {ex.Message}");
+                Console.WriteLine($"Error getting product details from gRPC service: {ex.Message}");
                 throw;
             }
         }

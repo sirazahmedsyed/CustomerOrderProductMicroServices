@@ -46,20 +46,29 @@ namespace PurchaseService.API.Controllers
                 _logger.LogWarning("Invalid model state for purchase creation");
                 return BadRequest(ModelState);
             }
-
             try
             {
-                var (isSuccess, createdPurchase, message) = await _purchaseService.AddPurchaseAsync(purchaseDto);
-
-                if (!isSuccess)
+                var result = await _purchaseService.AddPurchaseAsync(purchaseDto);
+                if (result is BadRequestObjectResult badRequestResult)
                 {
-                    _logger.LogWarning(message);
-                    return NotFound(new { message = message });
+                    var errorMessage = badRequestResult.Value?.ToString();
+                    _logger.LogWarning(errorMessage);
                 }
-
-                _logger.LogInformation("Purchase created successfully");
-                return Ok(createdPurchase);
+                return result;
             }
+            //try
+            //{
+            //    var (isSuccess, createdPurchase, message) = await _purchaseService.AddPurchaseAsync(purchaseDto);
+
+            //    if (!isSuccess)
+            //    {
+            //        _logger.LogWarning(message);
+            //        return NotFound(new { message = message });
+            //    }
+
+            //    _logger.LogInformation("Purchase created successfully");
+            //    return Ok(createdPurchase);
+            //}
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error occurred while creating purchase");

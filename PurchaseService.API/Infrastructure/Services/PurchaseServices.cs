@@ -1,15 +1,10 @@
 ﻿using AutoMapper;
-using Dapper;
 using Microsoft.AspNetCore.Mvc;
 using Npgsql;
-using ProductService.API.Infrastructure.DTOs;
-using ProductService.API.Infrastructure.Entities;
 using PurchaseService.API.Infrastructure.DTOs;
 using PurchaseService.API.Infrastructure.Entities;
 using PurchaseService.API.Infrastructure.UnitOfWork;
 using SharedRepository.Repositories;
-using System.Collections.Generic;
-using System.Threading.Tasks;
 
 namespace PurchaseService.API.Infrastructure.Services
 {
@@ -38,7 +33,7 @@ namespace PurchaseService.API.Infrastructure.Services
             return _mapper.Map<IEnumerable<PurchaseDTO>>(purchases);
         }
 
-        public async Task<(bool IsSuccess, PurchaseDTO Purchase, string Message)> AddPurchaseAsync(PurchaseDTO purchaseDto)
+        public async Task<IActionResult> AddPurchaseAsync(PurchaseDTO purchaseDto)
         {
             var connection = new NpgsqlConnection(dbconnection);
             connection.Open();
@@ -47,26 +42,26 @@ namespace PurchaseService.API.Infrastructure.Services
 
             if (purchaseExists)
             {
-                return (false, null, $"Duplicate purchase not allowed for this {purchaseDto.PurchaseOrderNo}.");
+                return new BadRequestObjectResult(new { message = $"Duplicate purchase not allowed for this {purchaseDto.PurchaseOrderNo}." });
             }
 
-            var productdetails = await _dataAccessHelper.GetProductDetailsAsync(purchaseDto.ProductId);
-            if (productdetails.ProductId == default)
+            var productDetails = await _dataAccessHelper.GetProductDetailsAsync(purchaseDto.ProductId);
+            if (productDetails.ProductId == 0)
             {
-                return (false, null, $"Product with ID {purchaseDto.ProductId} does not exist.");
+                return new BadRequestObjectResult(new { message = $"Product with ID {purchaseDto.ProductId} does not exist." });
             }
 
             var stockUpdated = await _dataAccessHelper.UpdateProductStockAsync(purchaseDto.ProductId, purchaseDto.Quantity);
             if (!stockUpdated)
             {
-                return (false, null, $"Failed to update product stock.");
+                return new BadRequestObjectResult(new { message = $"Failed to update product stock." });
             }
+
             var purchase = _mapper.Map<Purchase>(purchaseDto);
             await _unitOfWork.Repository<Purchase>().AddAsync(purchase);
             await _unitOfWork.CompleteAsync();
-            return (true, _mapper.Map<PurchaseDTO>(purchase), "Purchase created successfully");
+            return new OkObjectResult(new { message = "Purchase created successfully", Purchase = _mapper.Map<PurchaseDTO>(purchase) });
         }
-
 
         public async Task<(bool IsSuccess, PurchaseDTO Purchase, string Message)> UpdatePurchaseAsync(PurchaseDTO updatedPurchaseDto)
         {

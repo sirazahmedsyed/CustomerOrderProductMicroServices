@@ -1,18 +1,11 @@
+using GrpcClient;
 using Microsoft.EntityFrameworkCore;
 using PurchaseService.API.Infrastructure.DBContext;
-using PurchaseService.API.Infrastructure.Services;
 using PurchaseService.API.Infrastructure.Profiles;
-using PurchaseService.API.Infrastructure.UnitOfWork;
-using Microsoft.AspNetCore.Authentication.JwtBearer;
-using Microsoft.IdentityModel.Tokens;
-using Microsoft.OpenApi.Models;
-using System.Text;
-using SharedRepository.Repositories;
-using SharedRepository.Authorization;
-using System.Net;
-using Microsoft.AspNetCore.Authorization;
 using PurchaseService.API.Infrastructure.Services;
-using PurchaseService.API.Infrastructure.DBContext;
+using PurchaseService.API.Infrastructure.UnitOfWork;
+using SharedRepository.Authorization;
+using SharedRepository.Repositories;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -25,6 +18,8 @@ builder.Services.AddAutoMapper(typeof(MappingProfile));
 builder.Services.AddScoped(typeof(IGenericRepository<>), typeof(GenericRepository<>));
 builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
 builder.Services.AddScoped<IPurchaseService, PurchaseServices>();
+builder.Services.AddSingleton<InactiveFlagClient>();
+builder.Services.AddSingleton<ProductDetailsClient>();
 builder.Services.AddScoped<IDataAccessHelper, DataAccessHelper>();
 builder.Services.AddCors(options =>
 {
@@ -47,7 +42,6 @@ if (app.Environment.IsDevelopment())
 }
 app.UseCors("CorsPolicy");
 app.UseAuthentication();
-//app.UseMiddleware<CustomAuthenticationMiddleware>();
 app.UsePermissionMiddleware();
 app.UseAuthorization();
 app.MapControllers();
