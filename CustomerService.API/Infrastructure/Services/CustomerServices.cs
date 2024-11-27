@@ -12,6 +12,9 @@ using System.Threading.Tasks;
 using static Microsoft.EntityFrameworkCore.DbLoggerCategory;
 using System.Data.Common;
 using static Microsoft.EntityFrameworkCore.DbLoggerCategory.Database;
+using Microsoft.AspNetCore.Mvc;
+using SharedRepository.Repositories;
+using Azure;
 
 namespace CustomerService.API.Infrastructure.Services
 {
@@ -19,11 +22,13 @@ namespace CustomerService.API.Infrastructure.Services
     {
         private readonly IUnitOfWork _unitOfWork;
         private readonly IMapper _mapper;
+        private readonly IDataAccessHelper _dataAccessHelper;
         private readonly string dbconnection = "Host=dpg-csl1qfrv2p9s73ae0iag-a.oregon-postgres.render.com;Database=inventorymanagement_h8uy;Username=netconsumer;Password=UBmEj8MjJqg4zlimlXovbyt0bBDcrmiF";
-        public CustomerServices(IUnitOfWork unitOfWork, IMapper mapper)
+        public CustomerServices(IUnitOfWork unitOfWork, IMapper mapper, IDataAccessHelper dataAccessHelper)
         {
             _unitOfWork = unitOfWork;
             _mapper = mapper;
+            _dataAccessHelper = dataAccessHelper;
         }
 
         public async Task<IEnumerable<CustomerDTO>> GetAllCustomersAsync()
@@ -38,25 +43,24 @@ namespace CustomerService.API.Infrastructure.Services
                 return customer == null ? null : _mapper.Map<CustomerDTO>(customer);
             }
 
-        public async Task<(bool IsSuccess, Guid CustomerId, CustomerDTO Customer, string Message)> AddCustomerAsync(CustomerDTO customerDto)
+        public async Task<IActionResult> AddCustomerAsync(CustomerDTO customerDto)
         {
-            var connection = new NpgsqlConnection(dbconnection);
-            await connection.OpenAsync();
-
-            var existingCustomer = await connection.QueryAsync<Customer>(
-                $"SELECT Email FROM customers WHERE email = '{customerDto.Email}'");
-            var emailExists = existingCustomer.Any(c => c.Email == customerDto.Email);
-            if (existingCustomer.Any(c => c.Email != null))
+            var existingCustomer = await _dataAccessHelper.CheckEmailExistsAsync(customerDto.Email);
+           
+            if (!existingCustomer.EmailExists)
             {
-                return (false, Guid.Empty, null, "Customer with this email already exists.");
+                return new BadRequestObjectResult(new { message = $"Duplicate coustomer not allowed for this {customerDto.Email}." });
             }
             
             var customerEntity = _mapper.Map<Customer>(customerDto);
             customerEntity.CustomerId = Guid.NewGuid();
             await _unitOfWork.Repository<Customer>().AddAsync(customerEntity);
             await _unitOfWork.CompleteAsync();
-            var addedCustomerDto = _mapper.Map<CustomerDTO>(customerEntity);
-            return (true, customerEntity.CustomerId, addedCustomerDto, "Customer added successfully.");
+            return new OkObjectResult(
+                new { 
+                    message = "Customer added successfully.", 
+                    customer = _mapper.Map<CustomerDTO>(customerEntity) 
+                    });
         }
 
         public async Task<(bool IsSuccess, CustomerDTO Customer, string Message)> UpdateCustomerAsync(CustomerDTO customerDto)

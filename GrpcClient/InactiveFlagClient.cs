@@ -1,11 +1,5 @@
 ﻿using Grpc.Net.Client;
 using GrpcService;
-using GrpcService;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace GrpcClient
 {

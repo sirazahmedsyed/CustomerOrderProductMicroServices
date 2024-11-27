@@ -1,0 +1,42 @@
+syntax = "proto3";
+
+option csharp_namespace = "GrpcService";
+package customer;
+
+// Service definition
+service CustomerService {
+  rpc AddCustomer (CustomerRequest) returns (CustomerResponse);
+  rpc CheckEmailExists (EmailRequest) returns (EmailResponse);
+}
+
+// Request message containing the customer details
+message CustomerRequest {
+  string email = 1;
+  string name = 2;
+  // Add other customer fields as needed
+}
+
+// Response message containing the customer details
+message CustomerResponse {
+  bool is_success = 1;
+  string message = 2;
+  string customer_id = 3;
+  CustomerDTO customer = 4;
+}
+
+// Request message containing the email
+message EmailRequest {
+  string email = 1;
+}
+
+// Response message containing the email existence status
+message EmailResponse {
+  bool email_exists = 1;
+}
+
+// Customer DTO
+message CustomerDTO {
+  string email = 1;
+  string name = 2;
+  // Add other customer fields as needed
+}

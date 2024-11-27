@@ -15,6 +15,9 @@
 	<ItemGroup>
 		<Protobuf Include="Protos\ProductDetailsService.proto" GrpcServices="Server" />
 	</ItemGroup>
+	<ItemGroup>
+		<Protobuf Include="Protos\CustomerService.proto" GrpcServices="Server" />
+	</ItemGroup>
 
   <ItemGroup>
 		<PackageReference Include="Dapper" Version="2.1.35" />

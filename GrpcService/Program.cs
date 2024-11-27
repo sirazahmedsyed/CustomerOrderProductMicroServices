@@ -7,7 +7,7 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddGrpc();
 builder.Services.AddSingleton<IInactiveFlagRepository, InactiveFlagRepository>();
 builder.Services.AddSingleton<IProductDetailsRepository, ProductDetailsRepository>();
-
+builder.Services.AddSingleton<ICustomerRepository, CustomerRepository>();
 
 var app = builder.Build();
 
@@ -15,6 +15,7 @@ var app = builder.Build();
 app.MapGrpcService<GrpcInactiveFlagSvc>();
 app.MapGrpcService<GrpcInactiveCustomerFlagSvc>();
 app.MapGrpcService<GrpcProductDetailsService>();
+app.MapGrpcService<GrpcCustomerService>();
 app.MapGet("/", () => "Communication with gRPC endpoints must be made through a gRPC client.");
 
 app.Run();

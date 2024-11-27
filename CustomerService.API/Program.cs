@@ -1,26 +1,26 @@
+using CustomerService.API.Infrastructure.DBContext;
+using CustomerService.API.Infrastructure.Profiles;
 using CustomerService.API.Infrastructure.Services;
 using CustomerService.API.Infrastructure.UnitOfWork;
-using CustomerService.API.Infrastructure.Profiles;
+using GrpcClient;
 using Microsoft.EntityFrameworkCore;
-using CustomerService.API.Infrastructure.DBContext;
-using Microsoft.OpenApi.Models;
-using Microsoft.AspNetCore.Authentication.JwtBearer;
-using Microsoft.IdentityModel.Tokens;
-using System.Text;
-using CustomerService.API.Infrastructure.Middleware;
-using SharedRepository.Repositories;
 using SharedRepository.Authorization;
-using Microsoft.AspNetCore.Authorization;
+using SharedRepository.Repositories;
 
 var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddSharedAuthorization(builder.Configuration);
 builder.Services.AddAuthenticationSharedServices(builder.Configuration);
 builder.Services.AddSwaggerGenSharedServices(builder.Configuration);
+
 builder.Services.AddControllers();
 builder.Services.AddAutoMapper(typeof(MappingProfile));
 builder.Services.AddScoped(typeof(IGenericRepository<>), typeof(GenericRepository<>));
 builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
 builder.Services.AddScoped<ICustomerService, CustomerServices>();
+builder.Services.AddSingleton<InactiveFlagClient>();
+builder.Services.AddSingleton<ProductDetailsClient>();
+builder.Services.AddSingleton<CustomerClient>();
+builder.Services.AddScoped<IDataAccessHelper, DataAccessHelper>();
 
 builder.Services.AddCors(options =>
 {
@@ -48,7 +48,6 @@ if (app.Environment.IsDevelopment())
 
 app.UseCors("CorsPolicy");
 app.UseAuthentication();
-//app.UseMiddleware<CustomAuthenticationMiddleware>();
 app.UsePermissionMiddleware();
 app.UseAuthorization();
 app.MapControllers();

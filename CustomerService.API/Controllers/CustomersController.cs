@@ -73,25 +73,18 @@ namespace CustomerService.API.Controllers
                 _logger.LogWarning("Invalid model state for customer creation");
                 return BadRequest(ModelState);
             }
-
-            try
+            
+                try
             {
-                var (isSuccess, customerId, createdCustomerDto, message) = await _customerService.AddCustomerAsync(customerDto);
+                var result = await _customerService.AddCustomerAsync(customerDto);
 
-                if (!isSuccess)
+                if (result is BadRequestObjectResult badRequestResult)
                 {
-                    if (message.Contains("already exists"))
-                    {
-                        _logger.LogWarning("Customer creation failed: {Message}", message);
-                        return Ok(new { Message = "Customer with this email already exists." });
-                    }
-
-                    _logger.LogWarning("Customer creation failed: {Message}", message);
-                    return Ok(new { Message = message });
+                    var errorMessage = badRequestResult.Value?.ToString();
+                    _logger.LogWarning(errorMessage);
                 }
+                return result;
 
-                _logger.LogInformation("Customer with ID {CustomerId} created", customerId);
-                return Ok(createdCustomerDto);
             }
             catch (Exception ex)
             {

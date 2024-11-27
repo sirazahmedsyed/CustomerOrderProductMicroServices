@@ -10,11 +10,13 @@ namespace SharedRepository.Repositories
         private readonly string _dbconnection = "Host=dpg-csl1qfrv2p9s73ae0iag-a.oregon-postgres.render.com;Database=inventorymanagement_h8uy;Username=netconsumer;Password=UBmEj8MjJqg4zlimlXovbyt0bBDcrmiF";
         private readonly InactiveFlagClient _inactiveFlagClient;
         private readonly ProductDetailsClient _productDetailsClient;
+        private readonly CustomerClient _customerClient;
 
-        public DataAccessHelper(InactiveFlagClient inactiveFlagClient, ProductDetailsClient productDetailsClient)
+        public DataAccessHelper(InactiveFlagClient inactiveFlagClient, ProductDetailsClient productDetailsClient, CustomerClient customerClient)
         {
             _inactiveFlagClient = inactiveFlagClient;
             _productDetailsClient = productDetailsClient;
+            _customerClient = customerClient;
         }
 
         public async Task<bool> ExistsAsync(string tableName, string idColumn, object idValue)
@@ -78,6 +80,23 @@ namespace SharedRepository.Repositories
                 throw;
             }
         }
+
+
+        public async Task<EmailResponse> CheckEmailExistsAsync(string email)
+        { 
+            try 
+            { 
+                   var response = await _customerClient.CheckEmailExistsAsync(email); 
+                   Console.WriteLine($"Email check completed: {response}");
+                return response; 
+            } 
+            catch (Exception ex) 
+            { 
+                Console.WriteLine($"Error checking email via gRPC service: {ex.Message}"); 
+                throw; 
+            }
+        }
+
 
         public async Task<bool> UpdateProductStockAsync(int productId, int quantity)
         {

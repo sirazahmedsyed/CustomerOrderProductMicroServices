@@ -15,5 +15,6 @@ namespace SharedRepository.Repositories
 
         Task<bool> GetInactiveFlagFromGrpcAsync(int userGroupNo);
         Task<bool> GetInactiveCustomerFlag(Guid CustomerId);
+        Task<EmailResponse> CheckEmailExistsAsync(string email);
     }
 }
