@@ -1,11 +1,7 @@
-﻿using Microsoft.AspNetCore.Mvc;
-using Microsoft.Extensions.Logging;
-using System;
-using System.Threading.Tasks;
-using CustomerService.API.Infrastructure.DTOs;
+﻿using CustomerService.API.Infrastructure.DTOs;
 using CustomerService.API.Infrastructure.Services;
 using Microsoft.AspNetCore.Authorization;
-using CustomerService.API.Infrastructure.Entities;
+using Microsoft.AspNetCore.Mvc;
 using SharedRepository.Authorization;
 
 namespace CustomerService.API.Controllers
@@ -74,7 +70,7 @@ namespace CustomerService.API.Controllers
                 return BadRequest(ModelState);
             }
             
-                try
+            try
             {
                 var result = await _customerService.AddCustomerAsync(customerDto);
 
@@ -102,19 +98,17 @@ namespace CustomerService.API.Controllers
                 _logger.LogWarning("Invalid model state for customer update");
                 return BadRequest(ModelState);
             }
-
             try
             {
-                var (isSuccess, updatedCustomerDto, message) = await _customerService.UpdateCustomerAsync(customerDto);
+                var result = await _customerService.UpdateCustomerAsync(customerDto);
 
-                if (!isSuccess)
+                if (result is BadRequestObjectResult badRequestResult)
                 {
-                    _logger.LogWarning("Customer updation failed: {Message}", message);
-                    return Conflict(new { Message = message });
+                    var errorMessage = badRequestResult.Value?.ToString();
+                    _logger.LogWarning(errorMessage);
                 }
+                return result;
 
-                _logger.LogInformation("Customer with ID {CustomerId} updated", updatedCustomerDto.CustomerId);
-                return Ok(updatedCustomerDto);
             }
             catch (Exception ex)
             {
@@ -129,22 +123,20 @@ namespace CustomerService.API.Controllers
         {
             try
             {
-                _logger.LogInformation("Deleting customer with ID {CustomerId}", id);
-                var deletedCustomer = await _customerService.DeleteCustomerAsync(id);
-                if (!deletedCustomer.IsSuccess)
-                {
-                    _logger.LogWarning("Customer with ID {CustomerId} not found", id);
-                    return NotFound($"Customer with ID {id} not found.");
-                }
+                var result = await _customerService.DeleteCustomerAsync(id);
 
-                _logger.LogInformation("Customer with ID {CustomerId} deleted", id);
-                return Ok(deletedCustomer);
+                if (result is BadRequestObjectResult badRequestResult)
+                {
+                    var errorMessage = badRequestResult.Value?.ToString();
+                    _logger.LogWarning(errorMessage);
+                }
+                return result;
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error occurred while deleting customer with ID {CustomerId}", id);
+                _logger.LogError(ex, "Error occurred while creating customer");
                 return StatusCode(500, "Internal server error");
             }
         }
+        }
     }
-}

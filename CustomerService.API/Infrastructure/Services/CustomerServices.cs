@@ -3,18 +3,9 @@ using CustomerService.API.Infrastructure.DTOs;
 using CustomerService.API.Infrastructure.Entities;
 using CustomerService.API.Infrastructure.UnitOfWork;
 using Dapper;
-using Npgsql;
-using System;
-using System.Data;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
-using static Microsoft.EntityFrameworkCore.DbLoggerCategory;
-using System.Data.Common;
-using static Microsoft.EntityFrameworkCore.DbLoggerCategory.Database;
 using Microsoft.AspNetCore.Mvc;
+using Npgsql;
 using SharedRepository.Repositories;
-using Azure;
 
 namespace CustomerService.API.Infrastructure.Services
 {
@@ -49,53 +40,57 @@ namespace CustomerService.API.Infrastructure.Services
            
             if (!existingCustomer.EmailExists)
             {
-                return new BadRequestObjectResult(new { message = $"Duplicate coustomer not allowed for this {customerDto.Email}." });
+                return new BadRequestObjectResult(new { message = $"Duplicate customer not allowed for this {customerDto.Email}." });
             }
             
             var customerEntity = _mapper.Map<Customer>(customerDto);
             customerEntity.CustomerId = Guid.NewGuid();
             await _unitOfWork.Repository<Customer>().AddAsync(customerEntity);
             await _unitOfWork.CompleteAsync();
-            return new OkObjectResult(
-                new { 
+            return new OkObjectResult(new 
+            { 
                     message = "Customer added successfully.", 
                     customer = _mapper.Map<CustomerDTO>(customerEntity) 
-                    });
+            });
         }
 
-        public async Task<(bool IsSuccess, CustomerDTO Customer, string Message)> UpdateCustomerAsync(CustomerDTO customerDto)
+        public async Task<IActionResult> UpdateCustomerAsync(CustomerDTO customerDto)
         {
-            var connection = new NpgsqlConnection(dbconnection);
+            using var connection = new NpgsqlConnection(dbconnection);
             await connection.OpenAsync();
 
             var existingCustomer = await connection.QueryAsync<Customer>(
-                $"SELECT * FROM customers WHERE customer_id = '{customerDto.CustomerId}'");
-            
+            $"SELECT * FROM customers WHERE customer_id = '{customerDto.CustomerId}'");
             //var existingCustomer = await _unitOfWork.Repository<Customer>().FindAsync(c => c.CustomerId == customerDto.CustomerId);
+            
             if (existingCustomer.Any())
             {
-                 var customerToUpdate = existingCustomer.First();
+                var customerToUpdate = existingCustomer.First();
                 _mapper.Map(customerDto, customerToUpdate);
                 _unitOfWork.Repository<Customer>().Update(customerToUpdate);
                 await _unitOfWork.CompleteAsync();
 
-                var updatedCustomerDto = _mapper.Map<CustomerDTO>(customerToUpdate);
-                return (true, updatedCustomerDto, "Customer updated successfully.");
+                return new OkObjectResult(new
+                {
+                    message = "Customer updated successfully.",
+                    customer = _mapper.Map<CustomerDTO>(customerToUpdate)
+                });
             }
-            return (false, null, "Customer not found.");
+
+            return new BadRequestObjectResult(new { message = $"Customer is not found with this {customerDto.CustomerId} CustomerId." });
         }
 
-        public async Task<(bool IsSuccess, string Message)> DeleteCustomerAsync(Guid customerId)
+        public async Task<IActionResult> DeleteCustomerAsync(Guid customerId)
         {
             var customer = await _unitOfWork.Repository<Customer>().GetByIdAsync(customerId);
             if (customer != null)
             {
                 _unitOfWork.Repository<Customer>().Remove(customer);
                 await _unitOfWork.CompleteAsync();
-                return (true, "Customer deleted successfully.");
+                return new OkObjectResult(new { message = "Customer deleted successfully." });
             }
 
-            return (false, "Customer not found.");
+            return new BadRequestObjectResult(new { message = "Customer not found." });
         }
     }
 }

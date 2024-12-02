@@ -11,7 +11,7 @@ namespace CustomerService.API.Infrastructure.Services
         Task<IEnumerable<CustomerDTO>> GetAllCustomersAsync();
         Task<CustomerDTO> GetCustomerByIdAsync(Guid customerId);
         Task<IActionResult> AddCustomerAsync(CustomerDTO customerDto);
-        Task<(bool IsSuccess, CustomerDTO Customer, string Message)> UpdateCustomerAsync(CustomerDTO customerDto);
-        Task<(bool IsSuccess, string Message)> DeleteCustomerAsync(Guid customerId);
+        Task<IActionResult> UpdateCustomerAsync(CustomerDTO customerDto);
+        Task<IActionResult> DeleteCustomerAsync(Guid customerId);
     }
 }

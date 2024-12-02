@@ -1,7 +1,6 @@
 ﻿using AutoMapper;
 using CustomerService.API.Infrastructure.DTOs;
 using CustomerService.API.Infrastructure.Entities;
-using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace CustomerService.API.Infrastructure.Profiles
 {
