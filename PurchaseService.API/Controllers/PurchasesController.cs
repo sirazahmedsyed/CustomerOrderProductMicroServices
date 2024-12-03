@@ -1,9 +1,6 @@
 ﻿using Microsoft.AspNetCore.Mvc;
-using Microsoft.Extensions.Logging;
 using PurchaseService.API.Infrastructure.DTOs;
 using PurchaseService.API.Infrastructure.Services;
-using System;
-using System.Threading.Tasks;
 
 namespace PurchaseService.API.Controllers
 {
@@ -56,19 +53,6 @@ namespace PurchaseService.API.Controllers
                 }
                 return result;
             }
-            //try
-            //{
-            //    var (isSuccess, createdPurchase, message) = await _purchaseService.AddPurchaseAsync(purchaseDto);
-
-            //    if (!isSuccess)
-            //    {
-            //        _logger.LogWarning(message);
-            //        return NotFound(new { message = message });
-            //    }
-
-            //    _logger.LogInformation("Purchase created successfully");
-            //    return Ok(createdPurchase);
-            //}
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error occurred while creating purchase");
@@ -89,16 +73,13 @@ namespace PurchaseService.API.Controllers
 
             try
             {
-                var (isSuccess, updatedPurchase, message) = await _purchaseService.UpdatePurchaseAsync(purchaseDto);
-
-                if (!isSuccess)
+                var result = await _purchaseService.UpdatePurchaseAsync(purchaseDto);
+                if (result is BadRequestObjectResult badRequestResult)
                 {
-                    _logger.LogWarning(message);
-                    return NotFound(new { message = message });
+                    var errorMessage = badRequestResult.Value?.ToString();
+                    _logger.LogWarning(errorMessage);
                 }
-
-                _logger.LogInformation("Purchase updated successfully");
-                return Ok(updatedPurchase);
+                return result;
             }
             catch (Exception ex)
             {
@@ -113,16 +94,13 @@ namespace PurchaseService.API.Controllers
         {
             try
             {
-                var (isSuccess, message) = await _purchaseService.DeletePurchaseAsync(id);
-
-                if (!isSuccess)
+                var result = await _purchaseService.DeletePurchaseAsync(id);
+                if (result is BadRequestObjectResult badRequestResult)
                 {
-                    _logger.LogWarning(message);
-                    return NotFound(new { message = message });
+                    var errorMessage = badRequestResult.Value?.ToString();
+                    _logger.LogWarning(errorMessage);
                 }
-
-                _logger.LogInformation("Purchase deleted successfully");
-                return Ok(new { message = message });
+                return result;
             }
             catch (Exception ex)
             {

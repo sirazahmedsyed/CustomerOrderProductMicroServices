@@ -20,7 +20,9 @@ builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
 builder.Services.AddScoped<IPurchaseService, PurchaseServices>();
 builder.Services.AddSingleton<InactiveFlagClient>();
 builder.Services.AddSingleton<ProductDetailsClient>();
+builder.Services.AddSingleton<CustomerClient>();
 builder.Services.AddScoped<IDataAccessHelper, DataAccessHelper>();
+
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("CorsPolicy",
@@ -36,9 +38,9 @@ var app = builder.Build();
 
 if (app.Environment.IsDevelopment())
 {
+    app.UseDeveloperExceptionPage();
     app.UseSwagger();
     app.UseSwaggerUI();
-    app.UseDeveloperExceptionPage();
 }
 app.UseCors("CorsPolicy");
 app.UseAuthentication();
@@ -46,4 +48,3 @@ app.UsePermissionMiddleware();
 app.UseAuthorization();
 app.MapControllers();
 app.Run();
-
