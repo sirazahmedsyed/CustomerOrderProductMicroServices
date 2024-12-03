@@ -1,11 +1,7 @@
-﻿using Microsoft.AspNetCore.Mvc;
-using Microsoft.Extensions.Logging;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 using ProductService.API.Infrastructure.DTOs;
 using ProductService.API.Infrastructure.Services;
-using System;
-using System.Threading.Tasks;
-using Microsoft.AspNetCore.Authorization;
-using ProductService.API.Infrastructure.Entities;
 using SharedRepository.Authorization;
 
 namespace ProductService.API.Controllers
@@ -72,20 +68,18 @@ namespace ProductService.API.Controllers
                 _logger.LogWarning("Invalid model state for product creation");
                 return BadRequest(ModelState);
             }
-
             try
             {
-                var (isSuccess, createdProduct, message) = await _productService.AddProductAsync(productDto);
+                //return await _productService.AddProductAsync(productDto);
+                var result = await _productService.AddProductAsync(productDto);
 
-                if (!isSuccess)
+                if (result is BadRequestObjectResult badRequestResult)
                 {
-                    //_logger.LogWarning("Duplicate product with ID {ProductId} not allowed", productDto.ProductId);
-                    _logger.LogWarning(message);
-                    return BadRequest(new { message, productName = productDto.Name });
+                    var errorMessage = badRequestResult.Value?.ToString();
+                    _logger.LogWarning(errorMessage);
                 }
+                return result;
 
-                _logger.LogInformation("Product with ID {ProductId} created", createdProduct.ProductId);
-                return Ok(createdProduct);
             }
             catch (Exception ex)
             {
@@ -103,18 +97,17 @@ namespace ProductService.API.Controllers
                 _logger.LogWarning("Invalid model state for product update");
                 return BadRequest(ModelState);
             }
-
             try
             {
-                var updatedProduct = await _productService.UpdateProductAsync(productDto);
-                if (updatedProduct == null)
-                {
-                    _logger.LogWarning("Product with ID {ProductId} not found", productDto.ProductId);
-                    return NotFound($"Product with ID {productDto.ProductId} not found.");
-                }
+                var result = await _productService.UpdateProductAsync(productDto);
 
-                _logger.LogInformation("Product with ID {ProductId} updated", productDto.ProductId);
-                return Ok(updatedProduct);
+                if (result is BadRequestObjectResult badRequestResult)
+                {
+                    var errorMessage = badRequestResult.Value?.ToString();
+                    _logger.LogWarning(errorMessage);
+                }
+                return result;
+
             }
             catch (Exception ex)
             {
@@ -126,19 +119,18 @@ namespace ProductService.API.Controllers
         [HttpDelete]
         [Route("DeleteProduct/{id:int}")]
         public async Task<IActionResult> DeleteProduct(int id)
-        {   
+        {
             try
             {
-                _logger.LogInformation("Deleting product with ID {ProductId}", id);
-                var deletedProduct = await _productService.DeleteProductAsync(id);
-                if (!deletedProduct)
-                {
-                    _logger.LogWarning("Product with ID {ProductId} not found", id);
-                    return NotFound($"Product with ID {id} not found.");
-                }
+                var result = await _productService.DeleteProductAsync(id);
 
-                _logger.LogInformation("Product with ID {ProductId} deleted", id);
-                return Ok(deletedProduct);
+                if (result is BadRequestObjectResult badRequestResult)
+                {
+                    var errorMessage = badRequestResult.Value?.ToString();
+                    _logger.LogWarning(errorMessage);
+                }
+                return result;
+
             }
             catch (Exception ex)
             {

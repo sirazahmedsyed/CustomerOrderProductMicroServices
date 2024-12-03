@@ -1,11 +1,10 @@
 ﻿using AutoMapper;
 using Dapper;
+using Microsoft.AspNetCore.Mvc;
 using Npgsql;
 using ProductService.API.Infrastructure.DTOs;
 using ProductService.API.Infrastructure.Entities;
 using ProductService.API.Infrastructure.UnitOfWork;
-using System.Collections.Generic;
-using System.Threading.Tasks;
 
 namespace ProductService.API.Infrastructure.Services
 {
@@ -32,27 +31,30 @@ namespace ProductService.API.Infrastructure.Services
             return _mapper.Map<ProductDTO>(product);
         }
 
-        public async Task<(bool IsSuccess, ProductDTO Product, string Message)> AddProductAsync(ProductDTO productDto)
+        public async Task<IActionResult> AddProductAsync(ProductDTO productDto)
         {
-            var connection = new NpgsqlConnection(dbconnection);
-            connection.Open();
+            await using var connection = new NpgsqlConnection(dbconnection);
+            await connection.OpenAsync();
             Console.WriteLine($"connection opened : {connection}");
 
-            var existingProductByName = await connection.QuerySingleOrDefaultAsync<string>($"SELECT name FROM products WHERE name = '{productDto.Name}'");
+            var existingProductByName = await connection.QuerySingleOrDefaultAsync<string>($"select name from products where name = '{productDto.Name}'");
 
-            if (existingProductByName!=null)
+            if (existingProductByName != null)
             {
-                return (false, null, "Duplicate product not allowed for product name.");
+                return new BadRequestObjectResult(new { message = $"Duplicate product not allowed for this product {productDto.Name}" });
             }
 
             var product = _mapper.Map<Product>(productDto);
             await _unitOfWork.Repository<Product>().AddAsync(product);
             await _unitOfWork.CompleteAsync();
-
-            return (true, _mapper.Map<ProductDTO>(product), "Product created successfully");
+            return new OkObjectResult(new
+            {
+                message = "Product created successfully",
+                product = _mapper.Map<ProductDTO>(product)
+            });
         }
 
-        public async Task<ProductDTO> UpdateProductAsync(ProductDTO productDto)
+        public async Task<IActionResult> UpdateProductAsync(ProductDTO productDto)
         {
 
             var connection = new NpgsqlConnection(dbconnection);
@@ -63,23 +65,30 @@ namespace ProductService.API.Infrastructure.Services
 
             //var existingProduct = await _unitOfWork.Repository<Product>().GetByIdAsync(productDto.ProductId);
             if (existingProduct == null)
-                return null;
+            { 
+                return new BadRequestObjectResult(new { message = $"Product is not availble for this {productDto.ProductId} productId" });
+            }
 
             _mapper.Map(productDto, existingProduct); 
             _unitOfWork.Repository<Product>().Update(existingProduct);
             await _unitOfWork.CompleteAsync();
-
-            return _mapper.Map<ProductDTO>(existingProduct);
+            return new OkObjectResult(new
+            {
+                message = "Product Updated successfully",
+                product = _mapper.Map<ProductDTO>(existingProduct)
+            });
         }
-
-        public async Task<bool> DeleteProductAsync(int id)
+        public async Task<IActionResult> DeleteProductAsync(int id)
         {
             var product = await _unitOfWork.Repository<Product>().GetByIdAsync(id);
-            if (product == null) return false;
+            if (product == null)
+            {
+                return new BadRequestObjectResult(new { message = $"Product with ID {id} not found." });
+            }
 
             _unitOfWork.Repository<Product>().Remove(product);
             await _unitOfWork.CompleteAsync();
-            return true;
+            return new OkObjectResult(new { message = "Product deleted successfully." });
         }
     }
 }
