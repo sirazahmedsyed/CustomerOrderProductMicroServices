@@ -1,14 +1,11 @@
 ﻿using AutoMapper;
-using UserGroupService.API.Infrastructure.Services;
+using Dapper;
+using Microsoft.AspNetCore.Mvc;
+using Npgsql;
+using SharedRepository.Repositories;
 using UserGroupService.API.Infrastructure.DTOs;
 using UserGroupService.API.Infrastructure.Entities;
 using UserGroupService.API.Infrastructure.UnitOfWork;
-using Npgsql;
-using System.Data.Common;
-using static Microsoft.EntityFrameworkCore.DbLoggerCategory.Database;
-using System.Data;
-using Dapper;
-using SharedRepository.Repositories;
 
 namespace UserGroupService.API.Infrastructure.Services
 {
@@ -32,67 +29,83 @@ namespace UserGroupService.API.Infrastructure.Services
             return _mapper.Map<IEnumerable<UserGroupDTO>>(userGroups);
         }
 
-        public async Task<UserGroupDTO> GetUserGroupByIdAsync(int id)
+        public async Task<IActionResult> GetUserGroupByIdAsync(int id)
         {
             var userGroup = await _unitOfWork.Repository<UserGroup>().GetByIdAsync(id);
-            return _mapper.Map<UserGroupDTO>(userGroup);
+            if (userGroup == null)
+            {
+                return new BadRequestObjectResult(new { message = $"User group with ID {id} not found." });
+            }
+            return new ObjectResult( new { usergroup=_mapper.Map<UserGroupDTO>(userGroup) });
         }
 
-        public async Task<CreateUserGroupDTO> CreateUserGroupAsync(CreateUserGroupDTO userGroupDto)
+        public async Task<IActionResult> CreateUserGroupAsync(CreateUserGroupDTO userGroupDto)
         {
-            var connection = new NpgsqlConnection(dbconnection);
-            connection.Open();
+            await using var connection = new NpgsqlConnection(dbconnection);
+            await connection.OpenAsync();
             Console.WriteLine($"connection opened : {connection}");
 
             var existingUserGroup = await connection.QuerySingleOrDefaultAsync<int>(
-    $"SELECT user_group_no FROM user_groups WHERE user_group_local_name = '{userGroupDto.UserGroupLocalName}' AND user_group_foreign_name = '{userGroupDto.UserGroupForeignName}'");
+    $"select user_group_no from user_groups where user_group_local_name = '{userGroupDto.UserGroupLocalName}' and user_group_foreign_name = '{userGroupDto.UserGroupForeignName}'");
 
             if (existingUserGroup != 0)
                 {
                     Console.WriteLine($"User group with similar data already exists.");
-                    return null; 
-                }
+                    return new BadRequestObjectResult(new { message = "User group with similar data already exists." });
+            }
 
             var userGroup = _mapper.Map<UserGroup>(userGroupDto);
             await _unitOfWork.Repository<UserGroup>().AddAsync(userGroup);
             await _unitOfWork.CompleteAsync();
-            return _mapper.Map<CreateUserGroupDTO>(userGroup);
+            return new OkObjectResult(new
+            {
+                message = "UserGroup created successfully.",
+                usergroup = _mapper.Map<CreateUserGroupDTO>(userGroup)
+            });
         }
 
-        public async Task<UserGroupDTO> UpdateUserGroupAsync(UpdateUserGroupDTO userGroupDto)
+        public async Task<IActionResult> UpdateUserGroupAsync(UpdateUserGroupDTO userGroupDto)
         {
-            var connection = new NpgsqlConnection(dbconnection);
-            connection.Open();
+           await using var connection = new NpgsqlConnection(dbconnection);
+           await connection.OpenAsync();
             Console.WriteLine($"connection opened : {connection}");
 
-            // Get inactive_flag using gRPC client through DataAccessHelper
             var inactiveFlag = await _dataAccessHelper.GetInactiveFlagFromGrpcAsync(userGroupDto.UserGroupNo);
-            Console.WriteLine($"User group IN ACTIVE VALUE { inactiveFlag}");
+            Console.WriteLine($"User group in active value { inactiveFlag}");
 
             if (!inactiveFlag)
             {
                 Console.WriteLine("User group is not active, cannot update.");
-                return null;
+                return new BadRequestObjectResult(new { message = "User group is not active, cannot update." });
             }
                 
-            var existingUserGroup = await connection.QuerySingleOrDefaultAsync<UserGroup>($"SELECT * FROM user_groups WHERE user_group_no = {userGroupDto.UserGroupNo}");
+            var existingUserGroup = await connection.QuerySingleOrDefaultAsync<UserGroup>($"select * from user_groups where user_group_no = {userGroupDto.UserGroupNo}");
             if (existingUserGroup == null)
-                return null;
-
+            {
+                return new BadRequestObjectResult(new { message = $"User group with ID {userGroupDto.UserGroupNo} not found." });
+            }
             _mapper.Map(userGroupDto, existingUserGroup);
             await _unitOfWork.CompleteAsync();
-            return _mapper.Map<UserGroupDTO>(existingUserGroup);
+            return new OkObjectResult(new
+            {
+                message = "UserGroup updated successfully.",
+                usergroup = _mapper.Map<UserGroupDTO>(existingUserGroup)
+            });
         }
 
-        public async Task<bool> DeleteUserGroupAsync(int id)
+        public async Task<IActionResult> DeleteUserGroupAsync(int id)
         {
             var userGroup = await _unitOfWork.Repository<UserGroup>().GetByIdAsync(id);
             if (userGroup == null)
-                return false;
-
+            {
+                return new BadRequestObjectResult(new { message = $"UserGroup with ID {id} not found." });
+            }
             _unitOfWork.Repository<UserGroup>().Remove(userGroup);
             await _unitOfWork.CompleteAsync();
-            return true;
+            return new ObjectResult(new 
+            { 
+                message = "UserGroup deleted successfully."
+            });
         }
     }
 }

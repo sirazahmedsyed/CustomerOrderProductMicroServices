@@ -28,11 +28,19 @@ namespace CustomerService.API.Infrastructure.Services
             return _mapper.Map<IEnumerable<CustomerDTO>>(customers);
         }
 
-            public async Task<CustomerDTO> GetCustomerByIdAsync(Guid customerId)
+        public async Task<IActionResult> GetCustomerByIdAsync(Guid customerId)
+        {
+            var customer = await _unitOfWork.Repository<Customer>().GetByIdAsync(customerId);
+
+            if (customer == null)
             {
-                var customer = await _unitOfWork.Repository<Customer>().GetByIdAsync(customerId);
-                return customer == null ? null : _mapper.Map<CustomerDTO>(customer);
+                return new BadRequestObjectResult(new { message = $"Customer with ID {customerId} not found." });
             }
+            return new OkObjectResult(new
+            {
+                customerDto = _mapper.Map<CustomerDTO>(customer)
+            });
+        }
 
         public async Task<IActionResult> AddCustomerAsync(CustomerDTO customerDto)
         {

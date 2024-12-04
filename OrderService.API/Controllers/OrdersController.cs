@@ -1,7 +1,6 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using OrderService.API.Infrastructure.DTOs;
-using OrderService.API.Infrastructure.Entities;
 using OrderService.API.Infrastructure.Services;
 using SharedRepository.Authorization;
 
@@ -44,15 +43,15 @@ namespace OrderService.API.Controllers
         {
             try
             {
-                _logger.LogInformation("Getting order with ID {OrderId}", id);
-                var order = await _orderService.GetOrderByIdAsync(id);
-                if (order == null)
+                var result = await _orderService.GetOrderByIdAsync(id);
+                if (result is BadRequestObjectResult badRequestResult)
                 {
-                    _logger.LogWarning("Order with ID {OrderId} not found", id);
-                    return NotFound($"Order with OrderId {id} not found");
+                    var errorMessage = badRequestResult.Value?.ToString();
+                    _logger.LogWarning(errorMessage);
                 }
-                return Ok(order);
+                return result;
             }
+            
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error occurred while getting order with ID {OrderId}", id);
@@ -99,15 +98,15 @@ namespace OrderService.API.Controllers
             }
             try
             {
-                var (isSuccess, errorMessage, updatedOrder) = await _orderService.UpdateOrderAsync(orderDto);
-                if (!isSuccess)
-                {
-                    _logger.LogWarning(errorMessage);
-                    return NotFound(new { message = errorMessage });
-                }
+                var result = await _orderService.UpdateOrderAsync(orderDto);
 
-                _logger.LogInformation("Order with ID {OrderId} updated", orderDto.OrderId);
-                return Ok(updatedOrder);
+                if (result is BadRequestObjectResult badRequestResult)
+                {
+                    var errorMessage = badRequestResult.Value?.ToString();
+                    _logger.LogWarning(errorMessage);
+                }
+                return result;
+
             }
             catch (Exception ex)
             {
@@ -122,14 +121,14 @@ namespace OrderService.API.Controllers
         {
             try
             {
-                _logger.LogInformation("Deleting order with ID {OrderId}", id);
-                var deletedOrderId = await _orderService.DeleteOrderAsync(id);
-                return Ok(new { deletedOrderId }); 
-            }
-            catch (OrderNotFoundException ex)
-            {
-                _logger.LogWarning(ex.Message);
-                return NotFound(new { message = ex.Message });
+                var result = await _orderService.DeleteOrderAsync(id);
+
+                if (result is BadRequestObjectResult badRequestResult)
+                {
+                    var errorMessage = badRequestResult.Value?.ToString();
+                    _logger.LogWarning(errorMessage);
+                }
+                return result;
             }
             catch (Exception ex)
             {
@@ -137,6 +136,5 @@ namespace OrderService.API.Controllers
                 return StatusCode(500, "Internal server error");
             }
         }
-
     }
 }

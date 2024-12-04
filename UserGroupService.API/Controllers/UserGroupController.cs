@@ -3,7 +3,6 @@ using Microsoft.AspNetCore.Mvc;
 using SharedRepository.Authorization;
 using UserGroupService.API.Infrastructure.DTOs;
 using UserGroupService.API.Infrastructure.Services;
-using Microsoft.Extensions.Logging;
 
 namespace UserGroupService.API.Controllers
 {
@@ -42,13 +41,15 @@ namespace UserGroupService.API.Controllers
         {
             try
             {
-                var userGroup = await _userGroupService.GetUserGroupByIdAsync(id);
-                if (userGroup == null)
+                var result = await _userGroupService.GetUserGroupByIdAsync(id);
+
+                if (result is BadRequestObjectResult badRequestResult)
                 {
-                    _logger.LogWarning($"User group with ID {id} not found");
-                    return NotFound($"User group with ID {id} not found");
+                    var errorMessage = badRequestResult.Value?.ToString();
+                    _logger.LogWarning(errorMessage);
                 }
-                return Ok(userGroup);
+                return result;
+
             }
             catch (Exception ex)
             {
@@ -67,15 +68,17 @@ namespace UserGroupService.API.Controllers
                 _logger.LogWarning("Invalid model state for user group creation");
                 return BadRequest(ModelState);
             }
-
             try
             {
-                var createdUserGroup = await _userGroupService.CreateUserGroupAsync(userGroupDto);
-                if (createdUserGroup == null)
+                var result = await _userGroupService.CreateUserGroupAsync(userGroupDto);
+
+                if (result is BadRequestObjectResult badRequestResult)
                 {
-                    return NotFound($"Duplicate UserGroup with ID {userGroupDto.UserGroupNo} not allowed");
+                    var errorMessage = badRequestResult.Value?.ToString();
+                    _logger.LogWarning(errorMessage);
                 }
-                return Ok(createdUserGroup);
+                return result;
+
             }
             catch (Exception ex)
             {
@@ -93,17 +96,17 @@ namespace UserGroupService.API.Controllers
                 _logger.LogWarning("Invalid model state for user group update");
                 return BadRequest(ModelState);
             }
-
             try
             {
-                var updatedUserGroup = await _userGroupService.UpdateUserGroupAsync(userGroupDto);
-                if (updatedUserGroup == null)
+                var result = await _userGroupService.UpdateUserGroupAsync(userGroupDto);
+
+                if (result is BadRequestObjectResult badRequestResult)
                 {
-                    _logger.LogWarning($"User group with ID {userGroupDto.UserGroupNo} not found or is inactive");
-                    return NotFound($"User group with ID {userGroupDto.UserGroupNo} not found or is inactive.");
+                    var errorMessage = badRequestResult.Value?.ToString();
+                    _logger.LogWarning(errorMessage);
                 }
-                _logger.LogInformation($"User group with ID {userGroupDto.UserGroupNo} updated");
-                return Ok(updatedUserGroup);
+                return result;
+
             }
             catch (Exception ex)
             {
@@ -118,14 +121,15 @@ namespace UserGroupService.API.Controllers
         {
             try
             {
-                _logger.LogInformation($"Deleting user group with ID {id}");
-                var deletedUserGroup = await _userGroupService.DeleteUserGroupAsync(id);
-                if (!deletedUserGroup)
+                var result = await _userGroupService.DeleteUserGroupAsync(id);
+
+                if (result is BadRequestObjectResult badRequestResult)
                 {
-                    _logger.LogWarning($"User group with ID {id} not found");
-                    return NotFound($"User group with ID {id} not found.");
+                    var errorMessage = badRequestResult.Value?.ToString();
+                    _logger.LogWarning(errorMessage);
                 }
-                return Ok(deletedUserGroup);
+                return result;
+
             }
             catch (Exception ex)
             {

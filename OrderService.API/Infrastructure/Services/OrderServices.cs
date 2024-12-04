@@ -1,16 +1,11 @@
 ﻿using AutoMapper;
-using Dapper;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Configuration.UserSecrets;
-using Npgsql;
 using OrderService.API.Infrastructure.DTOs;
 using OrderService.API.Infrastructure.Entities;
-using OrderService.API.Infrastructure.Services;
 using OrderService.API.Infrastructure.UnitOfWork;
 using SharedRepository.Repositories;
-using System.Data.Common;
+
 namespace OrderService.API.Infrastructure.Services
 {
     public class OrderServices : IOrderService
@@ -33,11 +28,20 @@ namespace OrderService.API.Infrastructure.Services
             return _mapper.Map<IEnumerable<OrderDTO>>(orders);
         }
 
-        public async Task<OrderDTO> GetOrderByIdAsync(Guid id)
+        public async Task<IActionResult> GetOrderByIdAsync(Guid id)
         {
             var order = await _unitOfWork.Repository<Order>().GetByIdAsync(id,
                 include: q => q.Include(o => o.OrderItems));
-            return order == null ? null : _mapper.Map<OrderDTO>(order);
+
+            if (order == null)
+            {
+                return new BadRequestObjectResult(new { message = $"Order with ID {id} not found." });
+            }
+
+            return new OkObjectResult(new
+            {
+                order = _mapper.Map<OrderDTO>(order)
+            });
         }
 
         public async Task<IActionResult> AddOrderAsync(OrderDTO orderDto)
@@ -69,12 +73,12 @@ namespace OrderService.API.Infrastructure.Services
                 {
                     var productDetails = await _dataAccessHelper.GetProductDetailsAsync(item.ProductId);
 
-                    if (productDetails.ProductId == null)
+                    if (productDetails.ProductId == default)
                     {
                         return new BadRequestObjectResult(new { message = $"Product with ID {item.ProductId} does not exist." });
                     }
 
-                    productDetailsCache[item.ProductId] = (productDetails.Price, productDetails.TaxPercentage);
+                    productDetailsCache[item.ProductId] = (Convert.ToDecimal(productDetails.Price), Convert.ToDecimal(productDetails.TaxPercentage));
                     productStockCache[item.ProductId] = productDetails.Stock;
                 }
 
@@ -157,17 +161,17 @@ namespace OrderService.API.Infrastructure.Services
             return new OkObjectResult(_mapper.Map<OrderDTO>(existingOrder ?? newOrder));
         }
 
-        public async Task<(bool Success, string ErrorMessage, OrderDTO Order)> UpdateOrderAsync(OrderDTO orderDto)
+        public async Task<IActionResult> UpdateOrderAsync(OrderDTO orderDto)
         {
             if (!await _dataAccessHelper.ExistsAsync("orders", "order_id", orderDto.OrderId))
             {
-                return (false, $"Order with ID {orderDto.OrderId} does not exist.", null);
+                return new BadRequestObjectResult(new { message = $"Order with ID {orderDto.OrderId} does not exist." });
             }
 
 
             if (!await _dataAccessHelper.ExistsAsync("customers", "customer_id", orderDto.CustomerId))
             {
-                return (false, $"Customer with ID {orderDto.CustomerId} does not exist.", null);
+                return new BadRequestObjectResult(new { message = $"Customer with ID {orderDto.CustomerId} does not exist." });
             }
 
             var groupedOrderItems = orderDto.OrderItems
@@ -190,9 +194,9 @@ namespace OrderService.API.Infrastructure.Services
 
                     if (productDetails.ProductId == 0)
                     {
-                        return (false, $"Product with ID {item.ProductId} does not exist.", null);
+                        return new BadRequestObjectResult(new { message = $"Product with ID {item.ProductId} does not exist." });
                     }
-                    productDetailsCache[item.ProductId] = (productDetails.Price, productDetails.TaxPercentage);
+                    productDetailsCache[item.ProductId] = (Convert.ToDecimal(productDetails.Price), Convert.ToDecimal(productDetails.TaxPercentage));
                     productStockCache[item.ProductId] = productDetails.Stock;
                 }
             }
@@ -214,7 +218,7 @@ namespace OrderService.API.Infrastructure.Services
                 var availableStock = productStockCache[itemDto.ProductId];
                 if (totalQuantity > availableStock)
                 {
-                    return (false, $"Insufficient stock for product ID {itemDto.ProductId}. Available stock: {availableStock}.", null);
+                    return new BadRequestObjectResult(new { message = $"Insufficient stock for product ID {itemDto.ProductId}. Available stock: {availableStock}." });
                 }
 
                 if (existingItem != null)
@@ -237,22 +241,24 @@ namespace OrderService.API.Infrastructure.Services
             CalculateOrderTotals(existingOrder, productDetailsCache);
             _unitOfWork.Repository<Order>().Update(existingOrder);
             await _unitOfWork.CompleteAsync();
-            return (true, null, _mapper.Map<OrderDTO>(existingOrder));
+            return new OkObjectResult(new 
+            { 
+                message = "Order updated successfully.", 
+                order = _mapper.Map<OrderDTO>(existingOrder) 
+            });
         }
 
-        public async Task<Guid> DeleteOrderAsync(Guid id)
+        public async Task<IActionResult> DeleteOrderAsync(Guid id)
         {
             var order = await _unitOfWork.Repository<Order>().GetByIdAsync(id);
-            if (order != null)
+            if (order == null)
             {
-                _unitOfWork.Repository<Order>().Remove(order);
-                await _unitOfWork.CompleteAsync();
-                return id;
+                return new BadRequestObjectResult(new { message = $"Order with ID {id} not found." });
+                
             }
-            else
-            {
-                throw new OrderNotFoundException(id);
-            }
+            _unitOfWork.Repository<Order>().Remove(order);
+            await _unitOfWork.CompleteAsync();
+            return new OkObjectResult(new { message = "Order deleted successfully." });
         }
 
         private void CalculateOrderTotals(Order order, Dictionary<int, (decimal Price, decimal TaxPercentage)> productDetailsCache)

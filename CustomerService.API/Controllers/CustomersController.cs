@@ -43,14 +43,15 @@ namespace CustomerService.API.Controllers
         {
             try
             {
-                _logger.LogInformation("Getting customer with ID {CustomerId}", id);
-                var customerResult = await _customerService.GetCustomerByIdAsync(id);
-                if (customerResult == null)
+                var result = await _customerService.GetCustomerByIdAsync(id);
+
+                if (result is BadRequestObjectResult badRequestResult)
                 {
-                    _logger.LogWarning("Customer with ID {CustomerId} not found", id);
-                    return NotFound($"Customer with ID {id} not found.");
+                    var errorMessage = badRequestResult.Value?.ToString();
+                    _logger.LogWarning(errorMessage);
                 }
-                return Ok(customerResult);
+                return result;
+
             }
             catch (Exception ex)
             {

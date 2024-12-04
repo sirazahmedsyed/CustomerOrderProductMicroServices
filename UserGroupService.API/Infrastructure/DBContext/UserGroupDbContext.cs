@@ -1,6 +1,4 @@
 ﻿using Microsoft.EntityFrameworkCore;
-using System.Collections.Generic;
-using System.Reflection.Emit;
 using UserGroupService.API.Infrastructure.Entities;
 
 namespace UserGroupService.API.Infrastructure.DBContext

@@ -67,19 +67,15 @@ namespace UserService.API.Controllers
 
             try
             {
-                var (isSuccess, message, createdUser) = await _userService.CreateUserAsync(userDto);
+                var result = await _userService.CreateUserAsync(userDto);
 
-                if (!isSuccess)
+                if (result is BadRequestObjectResult badRequestResult)
                 {
-                    _logger.LogWarning(message);
-                    if (message.Contains("does not exist"))
-                    {
-                        return NotFound(message); 
-                    }
-                    return Conflict(message); 
+                    var errorMessage = badRequestResult.Value?.ToString();
+                    _logger.LogWarning(errorMessage);
                 }
+                return result;
 
-                return Ok(createdUser);
             }
             catch (Exception ex)
             {
@@ -100,16 +96,15 @@ namespace UserService.API.Controllers
 
             try
             {
-                var (isSuccess, message, updatedUser) = await _userService.UpdateUserAsync(userDto);
+                var result = await _userService.UpdateUserAsync(userDto);
 
-                if (!isSuccess)
+                if (result is BadRequestObjectResult badRequestResult)
                 {
-                    _logger.LogWarning(message); 
-                    return NotFound(message);    
+                    var errorMessage = badRequestResult.Value?.ToString();
+                    _logger.LogWarning(errorMessage);
                 }
+                return result;
 
-                _logger.LogInformation("User with ID {userDto.UserNo} updated successfully", userDto.UserNo);
-                return Ok(updatedUser); 
             }
             catch (Exception ex)
             {
@@ -127,16 +122,18 @@ namespace UserService.API.Controllers
                 _logger.LogWarning("Invalid model state for order creation");
                 return BadRequest(ModelState);
             }
+
             try
             {
-                _logger.LogInformation("Deleting user with ID {id}", id);
-                var deletedUser = await _userService.DeleteUserAsync(id);
-                if (!deletedUser)
+                var result = await _userService.DeleteUserAsync(id);
+
+                if (result is BadRequestObjectResult badRequestResult)
                 {
-                    _logger.LogWarning("User with ID {id} not found", id);
-                    return NotFound($"User with ID {id} not found.");
+                    var errorMessage = badRequestResult.Value?.ToString();
+                    _logger.LogWarning(errorMessage);
                 }
-                return Ok(deletedUser);
+                return result;
+
             }
             catch (Exception ex)
             {

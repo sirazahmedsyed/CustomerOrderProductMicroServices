@@ -1,5 +1,6 @@
 ﻿using AutoMapper;
 using Dapper;
+using Microsoft.AspNetCore.Mvc;
 using Npgsql;
 using UserService.API.Infrastructure.DTOs;
 using UserService.API.Infrastructure.Entities;
@@ -30,70 +31,83 @@ namespace UserService.API.Infrastructure.Services
             return _mapper.Map<UserDTO>(user);
         }
 
-        public async Task<(bool isSuccess, string message, UserDTO user)> CreateUserAsync(CreateUserDTO userDto)
-        {
-            using var connection = new NpgsqlConnection(dbconnection);
-            connection.Open();
-            Console.WriteLine($"connection opened : {connection}");
 
-            // Check if a user with the same email already exists
-            var userExists = await connection.QuerySingleOrDefaultAsync<int>(
-                $"SELECT COUNT(*) FROM public.users WHERE email = '{userDto.Email}'");
+        public async Task<IActionResult> CreateUserAsync(CreateUserDTO userDto)
+        {
+           await using var connection = new NpgsqlConnection(dbconnection);
+            await connection.OpenAsync();
+            Console.WriteLine($"Connection opened: {connection}");
+
+            var userExists = await connection.QuerySingleOrDefaultAsync<int>
+                ($"select count(*) from users where email = '{userDto.Email}'");
 
             if (userExists > 0)
             {
-                return (false, $"User with email {userDto.Email} already exists.", null);
+                return new BadRequestObjectResult(new { message = $"User with email {userDto.Email} already exists." });
             }
 
-            // Check if the UserGroupNo exists
             var userGroupNoExists = await connection.QuerySingleOrDefaultAsync<int>(
-                $"SELECT user_group_no FROM user_groups WHERE user_group_no = '{userDto.UserGroupNo}'");
+                $"select user_group_no from user_groups where user_group_no = '{userDto.UserGroupNo}'");
 
             if (userGroupNoExists == 0)
             {
-                return (false, $"User group with ID {userDto.UserGroupNo} does not exist.", null);
+                return new BadRequestObjectResult(new { message = $"User group with ID {userDto.UserGroupNo} does not exist." });
             }
 
             var user = _mapper.Map<User>(userDto);
             await _unitOfWork.Repository<User>().AddAsync(user);
             await _unitOfWork.CompleteAsync();
-            return (true, "User created successfully", _mapper.Map<UserDTO>(user));
+            return new OkObjectResult(new
+            {
+                message = "User created successfully.",
+                user = _mapper.Map<UserDTO>(user)
+            });
         }
-        public async Task<(bool isSuccess, string message, UserDTO user)> UpdateUserAsync(UpdateUserDTO userDto)
-        {
-            var connection = new NpgsqlConnection(dbconnection);
-            connection.Open();
-            Console.WriteLine($"connection opened : {connection}");
 
-            var existingUser = await connection.QuerySingleOrDefaultAsync<User>($"SELECT * FROM users WHERE user_no = '{userDto.UserNo}'");
+        public async Task<IActionResult> UpdateUserAsync(UpdateUserDTO userDto)
+        {
+            await using var connection = new NpgsqlConnection(dbconnection);
+            await connection.OpenAsync();
+            Console.WriteLine($"Connection opened: {connection}");
+
+            var existingUser = await connection.QuerySingleOrDefaultAsync<User>
+                ($"select * from users where user_no = '{userDto.UserNo}'");
 
             if (existingUser == null)
             {
-                return (false, $"User with UserNO {userDto.UserNo} does not exists.", null);
+                return new BadRequestObjectResult(new { message = $"User with UserNO {userDto.UserNo} does not exist." });
             }
 
             var userGroupNoExists = await connection.QuerySingleOrDefaultAsync<int>(
-            $"SELECT user_group_no FROM user_groups WHERE user_group_no = '{userDto.UserGroupNo}'");
-          
+            $"select user_group_no from user_groups where user_group_no = '{userDto.UserGroupNo}'");
+
             if (userGroupNoExists == 0)
             {
-                return (false, $"User group with ID {userDto.UserGroupNo} does not exist.", null);
+                return new BadRequestObjectResult(new { message = $"User group with ID {userDto.UserGroupNo} does not exist." });
             }
 
-            //var user = await _unitOfWork.Repository<User>().GetByIdAsync(userDto.UserNo);
             _mapper.Map(userDto, existingUser);
+            _unitOfWork.Repository<User>().Update(existingUser);
             await _unitOfWork.CompleteAsync();
-            return (true, "User created successfully", _mapper.Map<UserDTO>(existingUser));
+
+            return new OkObjectResult(new
+            {
+                message = "User updated successfully.",
+                user = _mapper.Map<UserDTO>(existingUser)
+            });
         }
-        
-        public async Task<bool> DeleteUserAsync(int userNo)
+
+        public async Task<IActionResult> DeleteUserAsync(int userNo)
         {
             var user = await _unitOfWork.Repository<User>().GetByIdAsync(userNo);
-            if (user == null) 
-            return false;
+            if (user == null)
+            {
+                return new BadRequestObjectResult(new { message = $"User with ID {userNo} not found." });
+            }
+
             _unitOfWork.Repository<User>().Remove(user);
             await _unitOfWork.CompleteAsync();
-            return true;
+            return new OkObjectResult(new { message = "User deleted successfully." });
         }
     }
 }

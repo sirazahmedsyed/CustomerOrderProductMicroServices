@@ -1,4 +1,5 @@
-﻿using UserService.API.Infrastructure.DTOs;
+﻿using Microsoft.AspNetCore.Mvc;
+using UserService.API.Infrastructure.DTOs;
 
 namespace UserService.API.Infrastructure.Services
 {
@@ -6,8 +7,8 @@ namespace UserService.API.Infrastructure.Services
     {
         Task<IEnumerable<UserDTO>> GetAllUsersAsync();
         Task<UserDTO> GetUserByIdAsync(int userNo);
-        Task<(bool isSuccess, string message, UserDTO user)> CreateUserAsync(CreateUserDTO userDto);
-        Task<(bool isSuccess, string message, UserDTO user)> UpdateUserAsync(UpdateUserDTO userDto);
-        Task<bool> DeleteUserAsync(int userNo);
+        Task<IActionResult> CreateUserAsync(CreateUserDTO userDto);
+        Task<IActionResult> UpdateUserAsync(UpdateUserDTO userDto);
+        Task<IActionResult> DeleteUserAsync(int userNo);
     }
 }
