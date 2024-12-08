@@ -12,8 +12,8 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace AuthService.API.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    [Migration("20241006103652_RenameUserCodeToUserNo")]
-    partial class RenameUserCodeToUserNo
+    [Migration("20241208072912_intialcreate")]
+    partial class intialcreate
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)

@@ -13,7 +13,7 @@ namespace PurchaseService.API.Infrastructure.Services
         private readonly IUnitOfWork _unitOfWork;
         private readonly IDataAccessHelper _dataAccessHelper;
         private readonly IMapper _mapper;
-        private readonly string dbconnection = "Host=dpg-csl1qfrv2p9s73ae0iag-a.oregon-postgres.render.com;Database=inventorymanagement_h8uy;Username=netconsumer;Password=UBmEj8MjJqg4zlimlXovbyt0bBDcrmiF";
+        private readonly string dbconnection = "Host=dpg-ctaj11q3esus739aqeb0-a.oregon-postgres.render.com;Database=inventorymanagement_m3a1;Username=netconsumer;Password=y5oyt0LjENzsldOuO4zZ3mB2WbeM2ohw";
         public PurchaseServices(IUnitOfWork unitOfWork, IDataAccessHelper dataAccessHelper, IMapper mapper)
         {
             _unitOfWork = unitOfWork;

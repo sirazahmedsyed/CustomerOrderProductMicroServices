@@ -19,7 +19,9 @@ builder.Services.AddAutoMapper(typeof(MappingProfile));
 builder.Services.AddScoped(typeof(IGenericRepository<>), typeof(GenericRepository<>));
 builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
 builder.Services.AddScoped<IOrderService, OrderServices>();
+builder.Services.AddSingleton<ProductDetailsClient>();
 builder.Services.AddSingleton<InactiveFlagClient>();
+builder.Services.AddSingleton<CustomerClient>();
 builder.Services.AddScoped<IDataAccessHelper, DataAccessHelper>();
 
 builder.Services.AddControllers();
