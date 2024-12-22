@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using OrderService.API.Infrastructure.DTOs;
 using OrderService.API.Infrastructure.Entities;
+using OrderService.API.Infrastructure.RabbitMQMessageBroker;
 using OrderService.API.Infrastructure.UnitOfWork;
 using SharedRepository.Repositories;
 
@@ -13,12 +14,16 @@ namespace OrderService.API.Infrastructure.Services
         private readonly IUnitOfWork _unitOfWork;
         private readonly IMapper _mapper;
         private readonly IDataAccessHelper _dataAccessHelper;
+        private readonly IMessagePublisher<OrderDTO> _messagePublisher;
+        private readonly ILogger<OrderServices> _logger;
         private readonly string dbconnection = "Host=dpg-ctaj11q3esus739aqeb0-a.oregon-postgres.render.com;Database=inventorymanagement_m3a1;Username=netconsumer;Password=y5oyt0LjENzsldOuO4zZ3mB2WbeM2ohw";
-        public OrderServices(IUnitOfWork unitOfWork, IDataAccessHelper dataAccessHelper, IMapper mapper)
+        public OrderServices(IUnitOfWork unitOfWork, IDataAccessHelper dataAccessHelper, IMapper mapper, IMessagePublisher<OrderDTO> messagePublisher, ILogger<OrderServices> logger)
         {
             _unitOfWork = unitOfWork;
             _dataAccessHelper = dataAccessHelper;
             _mapper = mapper;
+            _messagePublisher = messagePublisher;
+            _logger = logger;
         }
 
         public async Task<IEnumerable<OrderDTO>> GetAllOrdersAsync()
@@ -158,6 +163,19 @@ namespace OrderService.API.Infrastructure.Services
             }
 
             await _unitOfWork.CompleteAsync();
+
+            try
+            {
+                // Publish the OrderCreated event message by using RabbitMQ
+                await _messagePublisher.PublishAsync(_mapper.Map<OrderDTO>(existingOrder ?? newOrder), "order_created_queue");
+                _logger.LogInformation("OrderCreated event published successfully.");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error publishing OrderCreated event to RabbitMQ");
+                //return StatusCode(500, "Failed to publish OrderCreated event");
+            }
+
             return new OkObjectResult(_mapper.Map<OrderDTO>(existingOrder ?? newOrder));
         }
 
