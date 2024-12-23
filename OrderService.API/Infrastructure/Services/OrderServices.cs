@@ -1,6 +1,7 @@
 ﻿using AutoMapper;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 using OrderService.API.Infrastructure.DTOs;
 using OrderService.API.Infrastructure.Entities;
 using OrderService.API.Infrastructure.RabbitMQMessageBroker;
@@ -14,16 +15,19 @@ namespace OrderService.API.Infrastructure.Services
         private readonly IUnitOfWork _unitOfWork;
         private readonly IMapper _mapper;
         private readonly IDataAccessHelper _dataAccessHelper;
-        private readonly IMessagePublisher<OrderDTO> _messagePublisher;
+        private readonly IMessagePublisher<OrderDTO> _messagePublisher; 
         private readonly ILogger<OrderServices> _logger;
+        private readonly RabbitMQSettings _rabbitMQSettings;
         private readonly string dbconnection = "Host=dpg-ctaj11q3esus739aqeb0-a.oregon-postgres.render.com;Database=inventorymanagement_m3a1;Username=netconsumer;Password=y5oyt0LjENzsldOuO4zZ3mB2WbeM2ohw";
-        public OrderServices(IUnitOfWork unitOfWork, IDataAccessHelper dataAccessHelper, IMapper mapper, IMessagePublisher<OrderDTO> messagePublisher, ILogger<OrderServices> logger)
+        public OrderServices(IUnitOfWork unitOfWork, IDataAccessHelper dataAccessHelper, IMapper mapper, IMessagePublisher<OrderDTO> messagePublisher, ILogger<OrderServices> logger,
+            IOptions<RabbitMQSettings> rabbitMQSettingsOptions)
         {
             _unitOfWork = unitOfWork;
             _dataAccessHelper = dataAccessHelper;
             _mapper = mapper;
             _messagePublisher = messagePublisher;
             _logger = logger;
+            _rabbitMQSettings = rabbitMQSettingsOptions.Value;
         }
 
         public async Task<IEnumerable<OrderDTO>> GetAllOrdersAsync()
@@ -167,13 +171,14 @@ namespace OrderService.API.Infrastructure.Services
             try
             {
                 // Publish the OrderCreated event message by using RabbitMQ
-                await _messagePublisher.PublishAsync(_mapper.Map<OrderDTO>(existingOrder ?? newOrder), "order_created_queue");
-                _logger.LogInformation("OrderCreated event published successfully.");
+                // await _messagePublisher.PublishAsync(_mapper.Map<OrderDTO>(existingOrder ?? newOrder), "order_created_queue");
+                await _messagePublisher.PublishAsync(_mapper.Map<OrderDTO>(existingOrder ?? newOrder), _rabbitMQSettings.Queues.OrderCreated);
+                _logger.LogInformation($"OrderCreated event published successfully for the {_rabbitMQSettings.Queues.OrderCreated}.");
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error publishing OrderCreated event to RabbitMQ");
-                //return StatusCode(500, "Failed to publish OrderCreated event");
+                throw;
             }
 
             return new OkObjectResult(_mapper.Map<OrderDTO>(existingOrder ?? newOrder));
@@ -259,6 +264,19 @@ namespace OrderService.API.Infrastructure.Services
             CalculateOrderTotals(existingOrder, productDetailsCache);
             _unitOfWork.Repository<Order>().Update(existingOrder);
             await _unitOfWork.CompleteAsync();
+
+            try
+            {
+                // Publish the OrderUpdated event message by using RabbitMQ
+                await _messagePublisher.PublishAsync(_mapper.Map<OrderDTO>(existingOrder), _rabbitMQSettings.Queues.OrderUpdated);
+                _logger.LogInformation($"OrderUpdated event published successfully for the {_rabbitMQSettings.Queues.OrderUpdated}.");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error publishing OrderUpdated event to RabbitMQ");
+                throw;
+            }
+
             return new OkObjectResult(new 
             { 
                 message = "Order updated successfully.", 
@@ -276,6 +294,19 @@ namespace OrderService.API.Infrastructure.Services
             }
             _unitOfWork.Repository<Order>().Remove(order);
             await _unitOfWork.CompleteAsync();
+
+            try
+            {
+                // Publish the OrderDeleted event message by using RabbitMQ
+                await _messagePublisher.PublishAsync(_mapper.Map<OrderDTO>(order), _rabbitMQSettings.Queues.OrderDeleted);
+                _logger.LogInformation($"OrderDeleted event published successfully for the {_rabbitMQSettings.Queues.OrderDeleted}.");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error publishing OrderDeleted event to RabbitMQ");
+                throw;
+            }
+
             return new OkObjectResult(new { message = "Order deleted successfully." });
         }
 

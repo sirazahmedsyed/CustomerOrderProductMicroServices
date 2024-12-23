@@ -1,5 +1,4 @@
 ﻿using OrderService.API.Infrastructure.Entities;
-using OrderService.API.Infrastructure.RabbitMQMessageBroker;
 using RabbitMQ.Client;
 using RabbitMQ.Client.Events;
 using System.Text;
@@ -8,7 +7,7 @@ using System.Text.Json;
 
 var factory = new ConnectionFactory()
 {
-    HostName = "localhost", 
+    HostName = "localhost",
     Port = 5672,
     UserName = "guest",
     Password = "guest"
@@ -17,13 +16,18 @@ var factory = new ConnectionFactory()
 using var connection = factory.CreateConnection();
 using var channel = connection.CreateModel();
 
-channel.QueueDeclare("order-created-queue", durable: true, exclusive: false);
-
-//channel.QueueDeclare(queue: "order-created-queue",
-//                                     durable: true,
-//                                     exclusive: false,
-//                                     autoDelete: false,
-//                                     arguments: null);
+//channel.QueueDeclare("order_created_queue", durable: true, exclusive: false);
+try
+{
+    channel.QueueDeclarePassive(queue: "order-updated-queue");
+}
+catch (Exception ex) when (ex is RabbitMQ.Client.Exceptions.BrokerUnreachableException ||
+                            ex is System.IO.IOException)
+{
+    channel.QueueDeclare(
+    queue: "order-updated-queue", durable: true, exclusive: false, autoDelete: false, arguments: null
+    );
+}
 
 Console.WriteLine("Waiting for messages...");
 
@@ -31,25 +35,45 @@ var consumer = new EventingBasicConsumer(channel);
 
 consumer.Received += (model, ea) =>
 {
-    var body = ea.Body.ToArray();
-    var message = Encoding.UTF8.GetString(body);
+    try
+    {
+        var body = ea.Body.ToArray();
+        var message = Encoding.UTF8.GetString(body);
 
-    // Deserialize the JSON message into an Order object
-    var order = JsonSerializer.Deserialize<Order>(message);
+        var order = JsonSerializer.Deserialize<Order>(message);
 
-    // Print specific fields from the deserialized object
-    Console.WriteLine($" [x] Received Order ID: {order.OrderId}");
+        if (order == null)
+        {
+            Console.WriteLine($"[x] Error: Unable to deserialize message: {message}");
+            channel.BasicReject(ea.DeliveryTag, false);
+            return;
+        }
 
-    // Acknowledge the message (important for autoAck: false)
-    channel.BasicAck(ea.DeliveryTag, false);
+        Console.WriteLine($"   Received Order:");
+        Console.WriteLine($"   Order ID: {order.OrderId}");
+        Console.WriteLine($"   Customer ID: {order.CustomerId}");
+        Console.WriteLine($"   Order Date: {order.OrderDate}");
+        Console.WriteLine($"   Total Amount: {order.TotalAmount}");
+        Console.WriteLine($"   Discount Percentage: {order.DiscountPercentage}");
+        Console.WriteLine($"   Discounted Total: {order.DiscountedTotal}");
+
+        channel.BasicAck(ea.DeliveryTag, false);
+    }
+    catch (Exception ex)
+    {
+        if (ex is JsonException)
+        {
+            Console.WriteLine($"[x] JSON deserialization error: {ex.Message}");
+            channel.BasicReject(ea.DeliveryTag, false);
+        }
+        else
+        {
+            Console.WriteLine($"[x] An error occurred while processing the message: {ex.Message}");
+            channel.BasicNack(ea.DeliveryTag, false, true);
+        }
+    }
 };
 
-channel.BasicConsume(queue: "order-created-queue",
-                     autoAck: false, // Set to false for manual acknowledgment
-                     consumer: consumer);
+channel.BasicConsume(queue: "order-updated-queue", autoAck: false, consumer: consumer);
 Console.WriteLine(" Press [enter] to exit.");
 Console.ReadLine(); 
-
-
-
-
