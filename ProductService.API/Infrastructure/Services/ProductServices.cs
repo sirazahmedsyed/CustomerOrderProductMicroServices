@@ -5,6 +5,8 @@ using Npgsql;
 using ProductService.API.Infrastructure.DTOs;
 using ProductService.API.Infrastructure.Entities;
 using ProductService.API.Infrastructure.UnitOfWork;
+using SharedRepository.RabbitMQMessageBroker.Interfaces;
+using SharedRepository.RabbitMQMessageBroker.Settings;
 
 namespace ProductService.API.Infrastructure.Services
 {
@@ -12,11 +14,17 @@ namespace ProductService.API.Infrastructure.Services
     {
         private readonly IUnitOfWork _unitOfWork;
         private readonly IMapper _mapper;
+        private readonly IMessagePublisher<ProductDTO> _messagePublisher;
+        private readonly ILogger<ProductServices> _logger;
+        private readonly RabbitMQSettings _settings;
         private readonly string dbconnection = "Host=dpg-ctaj11q3esus739aqeb0-a.oregon-postgres.render.com;Database=inventorymanagement_m3a1;Username=netconsumer;Password=y5oyt0LjENzsldOuO4zZ3mB2WbeM2ohw";
-        public ProductServices(IUnitOfWork unitOfWork, IMapper mapper)
+        public ProductServices(IUnitOfWork unitOfWork, IMapper mapper, IMessagePublisher<ProductDTO> messagePublisher, ILogger<ProductServices> logger)
         {
             _unitOfWork = unitOfWork;
             _mapper = mapper;
+            _messagePublisher = messagePublisher;
+            _settings = RabbitMQConfigurations.DefaultSettings;
+            _logger = logger;
         }
 
         public async Task<IEnumerable<ProductDTO>> GetAllProductsAsync()
@@ -47,6 +55,19 @@ namespace ProductService.API.Infrastructure.Services
             var product = _mapper.Map<Product>(productDto);
             await _unitOfWork.Repository<Product>().AddAsync(product);
             await _unitOfWork.CompleteAsync();
+
+            try
+            {
+                // Publish the OrderCreated event message by using RabbitMQ
+                await _messagePublisher.PublishAsync(_mapper.Map<ProductDTO>(product), _settings.Queues.ProductCreated);
+                _logger.LogInformation($"ProductCreated event published successfully for the {_settings.Queues.ProductCreated}.");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error publishing ProductCreated event to RabbitMQ");
+                throw;
+            }
+
             return new OkObjectResult(new
             {
                 message = "Product created successfully",
@@ -72,6 +93,19 @@ namespace ProductService.API.Infrastructure.Services
             _mapper.Map(productDto, existingProduct); 
             _unitOfWork.Repository<Product>().Update(existingProduct);
             await _unitOfWork.CompleteAsync();
+
+            try
+            {
+                // Publish the OrderCreated event message by using RabbitMQ
+                await _messagePublisher.PublishAsync(_mapper.Map<ProductDTO>(existingProduct), _settings.Queues.ProductUpdated);
+                _logger.LogInformation($"ProductUpdated event published successfully for the {_settings.Queues.ProductUpdated}.");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error publishing ProductUpdated event to RabbitMQ");
+                throw;
+            }
+
             return new OkObjectResult(new
             {
                 message = "Product Updated successfully",
@@ -88,6 +122,19 @@ namespace ProductService.API.Infrastructure.Services
 
             _unitOfWork.Repository<Product>().Remove(product);
             await _unitOfWork.CompleteAsync();
+
+            try
+            {
+                // Publish the OrderCreated event message by using RabbitMQ
+                await _messagePublisher.PublishAsync(_mapper.Map<ProductDTO>(product), _settings.Queues.ProductDeleted);
+                _logger.LogInformation($"ProductDeleted event published successfully for the {_settings.Queues.ProductDeleted}.");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error publishing ProductDeleted event to RabbitMQ");
+                throw;
+            }
+
             return new OkObjectResult(new { message = "Product deleted successfully." });
         }
     }

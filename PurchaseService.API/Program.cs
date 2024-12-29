@@ -6,12 +6,14 @@ using PurchaseService.API.Infrastructure.Services;
 using PurchaseService.API.Infrastructure.UnitOfWork;
 using SharedRepository.Authorization;
 using SharedRepository.Repositories;
+using SharedRepository.RabbitMQMessageBroker.Extensions;
 
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddSharedAuthorization(builder.Configuration);
 builder.Services.AddAuthenticationSharedServices(builder.Configuration);
 builder.Services.AddSwaggerGenSharedServices(builder.Configuration);
+builder.Services.AddSharedRabbitMQ();
 
 builder.Services.AddControllers();
 builder.Services.AddAutoMapper(typeof(MappingProfile));
@@ -22,6 +24,7 @@ builder.Services.AddSingleton<InactiveFlagClient>();
 builder.Services.AddSingleton<ProductDetailsClient>();
 builder.Services.AddSingleton<CustomerClient>();
 builder.Services.AddScoped<IDataAccessHelper, DataAccessHelper>();
+// Program.cs in OrderService.API or PurchaseService.API
 
 builder.Services.AddCors(options =>
 {

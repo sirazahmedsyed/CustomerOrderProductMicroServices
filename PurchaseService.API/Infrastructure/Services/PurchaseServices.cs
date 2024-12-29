@@ -4,6 +4,8 @@ using Npgsql;
 using PurchaseService.API.Infrastructure.DTOs;
 using PurchaseService.API.Infrastructure.Entities;
 using PurchaseService.API.Infrastructure.UnitOfWork;
+using SharedRepository.RabbitMQMessageBroker.Interfaces;
+using SharedRepository.RabbitMQMessageBroker.Settings;
 using SharedRepository.Repositories;
 
 namespace PurchaseService.API.Infrastructure.Services
@@ -13,12 +15,19 @@ namespace PurchaseService.API.Infrastructure.Services
         private readonly IUnitOfWork _unitOfWork;
         private readonly IDataAccessHelper _dataAccessHelper;
         private readonly IMapper _mapper;
+        private readonly IMessagePublisher<PurchaseDTO> _messagePublisher;
+        private readonly ILogger<PurchaseServices> _logger;
+        private readonly RabbitMQSettings _settings;
+
         private readonly string dbconnection = "Host=dpg-ctaj11q3esus739aqeb0-a.oregon-postgres.render.com;Database=inventorymanagement_m3a1;Username=netconsumer;Password=y5oyt0LjENzsldOuO4zZ3mB2WbeM2ohw";
-        public PurchaseServices(IUnitOfWork unitOfWork, IDataAccessHelper dataAccessHelper, IMapper mapper)
+        public PurchaseServices(IUnitOfWork unitOfWork, IDataAccessHelper dataAccessHelper, IMapper mapper, IMessagePublisher<PurchaseDTO> messagePublisher, ILogger<PurchaseServices> logger)
         {
             _unitOfWork = unitOfWork;
             _dataAccessHelper = dataAccessHelper;
             _mapper = mapper;
+            _messagePublisher = messagePublisher;
+            _settings = RabbitMQConfigurations.DefaultSettings;
+            _logger = logger;
         }
 
         public async Task<PurchaseDTO> GetPurchaseByIdAsync(int id)
@@ -60,6 +69,19 @@ namespace PurchaseService.API.Infrastructure.Services
             var purchase = _mapper.Map<Purchase>(purchaseDto);
             await _unitOfWork.Repository<Purchase>().AddAsync(purchase);
             await _unitOfWork.CompleteAsync();
+
+            try
+            {
+                // Publish the OrderCreated event message by using RabbitMQ
+                await _messagePublisher.PublishAsync(_mapper.Map<PurchaseDTO>(purchase), _settings.Queues.PurchaseCreated);
+                _logger.LogInformation($"PurchaseCreated event published successfully for the {_settings.Queues.PurchaseCreated}.");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error publishing PurchaseCreated event to RabbitMQ");
+                throw;
+            }
+
             return new OkObjectResult(new { message = "Purchase created successfully", Purchase = _mapper.Map<PurchaseDTO>(purchase) });
         }
 
@@ -90,6 +112,18 @@ namespace PurchaseService.API.Infrastructure.Services
             _unitOfWork.Repository<Purchase>().Update(existingPurchase);
             await _unitOfWork.CompleteAsync();
 
+            try
+            {
+                // Publish the purchaseupdated event message by using RabbitMQ
+                await _messagePublisher.PublishAsync(_mapper.Map<PurchaseDTO>(existingPurchase), _settings.Queues.PurchaseUpdated);
+                _logger.LogInformation($"PurchaseUpdated event published successfully for the {_settings.Queues.PurchaseUpdated}.");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error publishing PurchaseUpdated event to RabbitMQ");
+                throw;
+            }
+
             return new OkObjectResult(new
             {
                 message = "Purchase updated successfully.",
@@ -114,6 +148,19 @@ namespace PurchaseService.API.Infrastructure.Services
 
             _unitOfWork.Repository<Purchase>().Remove(purchase);
             await _unitOfWork.CompleteAsync();
+
+            try
+            {
+                // Publish the PurchaseDeleted event message by using RabbitMQ
+                await _messagePublisher.PublishAsync(_mapper.Map<PurchaseDTO>(purchase), _settings.Queues.PurchaseDeleted);
+                _logger.LogInformation($"PurchaseDeleted event published successfully for the {_settings.Queues.PurchaseDeleted}.");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error publishing PurchaseDeleted event to RabbitMQ");
+                throw;
+            }
+
             return new OkObjectResult(new { message = "Purchase deleted successfully." });
         }
     }

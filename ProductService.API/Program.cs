@@ -4,6 +4,7 @@ using ProductService.API.Infrastructure.Profiles;
 using ProductService.API.Infrastructure.Services;
 using ProductService.API.Infrastructure.UnitOfWork;
 using SharedRepository.Authorization;
+using SharedRepository.RabbitMQMessageBroker.Extensions;
 using SharedRepository.Repositories;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -11,6 +12,7 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddSharedAuthorization(builder.Configuration);
 builder.Services.AddAuthenticationSharedServices(builder.Configuration);
 builder.Services.AddSwaggerGenSharedServices(builder.Configuration);
+builder.Services.AddSharedRabbitMQ();
 
 builder.Services.AddControllers();
 builder.Services.AddAutoMapper(typeof(MappingProfile));
