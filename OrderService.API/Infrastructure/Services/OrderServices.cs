@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using OrderService.API.Infrastructure.DTOs;
 using OrderService.API.Infrastructure.Entities;
+using OrderService.API.Infrastructure.KafkaMessageBroker;
 using OrderService.API.Infrastructure.RabbitMQMessageBroker;
 using OrderService.API.Infrastructure.UnitOfWork;
 using SharedRepository.Repositories;
@@ -18,9 +19,14 @@ namespace OrderService.API.Infrastructure.Services
         private readonly IMessagePublisher<OrderDTO> _messagePublisher; 
         private readonly ILogger<OrderServices> _logger;
         private readonly RabbitMQSettings _rabbitMQSettings;
-        private readonly string dbconnection = "Host=dpg-ctaj11q3esus739aqeb0-a.oregon-postgres.render.com;Database=inventorymanagement_m3a1;Username=netconsumer;Password=y5oyt0LjENzsldOuO4zZ3mB2WbeM2ohw";
+
+        private readonly IKafkaMessagePublisher<OrderDTO> _kafkamessagePublisher;
+        private readonly KafkaSettings _kafkaSettings;
+
+        private readonly string dbconnection = "Host=dpg-ctuh03lds78s73fntmag-a.oregon-postgres.render.com;Database=order_management_db;Username=netconsumer;Password=wv5ZjPAcJY8ICgPJF0PZUV86qdKx2r7d";
         public OrderServices(IUnitOfWork unitOfWork, IDataAccessHelper dataAccessHelper, IMapper mapper, IMessagePublisher<OrderDTO> messagePublisher, ILogger<OrderServices> logger,
-            IOptions<RabbitMQSettings> rabbitMQSettingsOptions)
+          IKafkaMessagePublisher<OrderDTO> kafkamessagePublisher,
+    IOptions<KafkaSettings> kafkaSettings, IOptions<RabbitMQSettings> rabbitMQSettingsOptions)
         {
             _unitOfWork = unitOfWork;
             _dataAccessHelper = dataAccessHelper;
@@ -28,6 +34,9 @@ namespace OrderService.API.Infrastructure.Services
             _messagePublisher = messagePublisher;
             _logger = logger;
             _rabbitMQSettings = rabbitMQSettingsOptions.Value;
+
+            _kafkamessagePublisher = kafkamessagePublisher;
+            _kafkaSettings = kafkaSettings.Value;
         }
 
         public async Task<IEnumerable<OrderDTO>> GetAllOrdersAsync()
@@ -181,6 +190,18 @@ namespace OrderService.API.Infrastructure.Services
                 throw;
             }
 
+            // kafka publish message to topic ordercreated for testing after publishing the message in RabbitMQ in the above line of code
+            try
+            {
+                await _kafkamessagePublisher.PublishAsync(_mapper.Map<OrderDTO>(existingOrder ?? newOrder), _kafkaSettings.Topics.OrderCreated);
+                _logger.LogInformation($"OrderCreated topic published successfully for the {_kafkaSettings.Topics.OrderCreated}.");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error publishing OrderCreated event to RabbitMQ");
+                throw;
+            }
+
             return new OkObjectResult(_mapper.Map<OrderDTO>(existingOrder ?? newOrder));
         }
 
@@ -277,6 +298,19 @@ namespace OrderService.API.Infrastructure.Services
                 throw;
             }
 
+            // kafka publish message to topic orderupdated for testing after publishing the message in RabbitMQ in the above line of code
+            try
+            {
+                // Publish the OrderUpdated message by using kafka
+                await _kafkamessagePublisher.PublishAsync(_mapper.Map<OrderDTO>(existingOrder), _kafkaSettings.Topics.OrderUpdated);
+                _logger.LogInformation($"OrderUpdated kafka published successfully for the {_kafkaSettings.Topics.OrderUpdated}.");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error publishing OrderUpdated message to kafka");
+                throw;
+            }
+
             return new OkObjectResult(new 
             { 
                 message = "Order updated successfully.", 
@@ -304,6 +338,19 @@ namespace OrderService.API.Infrastructure.Services
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error publishing OrderDeleted event to RabbitMQ");
+                throw;
+            }
+
+            // kafka publish message to topic orderdeleted for testing after publishing the message in RabbitMQ in the above line of code
+            try
+            {
+                // Publish the OrderUpdated message by using kafka
+                await _kafkamessagePublisher.PublishAsync(_mapper.Map<OrderDTO>(order), _kafkaSettings.Topics.OrderDeleted);
+                _logger.LogInformation($"OrderDeleted kafka published successfully for the {_kafkaSettings.Topics.OrderDeleted}.");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error publishing OrderDeleted message to kafka");
                 throw;
             }
 

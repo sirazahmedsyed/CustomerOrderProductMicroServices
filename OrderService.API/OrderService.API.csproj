@@ -7,7 +7,12 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <None Remove="docker-compose.yml" />
+  </ItemGroup>
+
+  <ItemGroup>
     <PackageReference Include="AutoMapper.Extensions.Microsoft.DependencyInjection" Version="12.0.1" />
+    <PackageReference Include="Confluent.Kafka" Version="2.6.1" />
     <PackageReference Include="Dapper" Version="2.1.35" />
     <PackageReference Include="IG.Data.SqlClient" Version="1.1.16" />
     <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="8.0.8" />
@@ -26,6 +31,10 @@
 
   <ItemGroup>
     <ProjectReference Include="..\SharedRepository\SharedRepository.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="Kafka\" />
   </ItemGroup>
 
 </Project>

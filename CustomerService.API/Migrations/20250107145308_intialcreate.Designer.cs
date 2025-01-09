@@ -12,7 +12,7 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace CustomerService.API.Migrations
 {
     [DbContext(typeof(CustomerDbContext))]
-    [Migration("20241106165402_intialcreate")]
+    [Migration("20250107145308_intialcreate")]
     partial class intialcreate
     {
         /// <inheritdoc />
@@ -43,6 +43,10 @@ namespace CustomerService.API.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)")
                         .HasColumnName("first_name");
+
+                    b.Property<short>("InactiveFlag")
+                        .HasColumnType("int2")
+                        .HasColumnName("inactive_flag");
 
                     b.Property<string>("LastName")
                         .IsRequired()

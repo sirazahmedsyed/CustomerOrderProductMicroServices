@@ -1,6 +1,8 @@
 using GrpcClient;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Win32;
 using OrderService.API.Infrastructure.DBContext;
+using OrderService.API.Infrastructure.KafkaMessageBroker;
 using OrderService.API.Infrastructure.Profiles;
 using OrderService.API.Infrastructure.RabbitMQMessageBroker;
 using OrderService.API.Infrastructure.Services;
@@ -18,9 +20,10 @@ builder.Services.AddDbContext<OrderDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
 
 // Configure RabbitMQ Settings
-builder.Services.Configure<RabbitMQSettings>(
-    builder.Configuration.GetSection("RabbitMQSettings")
-);
+builder.Services.Configure<RabbitMQSettings>(builder.Configuration.GetSection("RabbitMQSettings"));
+
+// Configure Kafka settings
+builder.Services.Configure<KafkaSettings>(builder.Configuration.GetSection("KafkaSettings"));
 
 builder.Services.AddAutoMapper(typeof(MappingProfile));
 builder.Services.AddScoped(typeof(IGenericRepository<>), typeof(GenericRepository<>));
@@ -38,6 +41,11 @@ builder.Services.AddScoped<IDataAccessHelper, DataAccessHelper>();
 //builder.Services.AddTransient(typeof(IMessagePublisher<>), typeof(RabbitMQMessagePublisher<>));
 builder.Services.AddScoped(typeof(IMessagePublisher<>), typeof(RabbitMQMessagePublisher<>));
 
+// Register Kafka publisher
+builder.Services.AddSingleton(typeof(IKafkaMessagePublisher<>), typeof(KafkaMessagePublisher<>));
+
+// Register Kafka consumer service
+builder.Services.AddHostedService<KafkaConsumerService>();
 
 builder.Services.AddControllers();
 var app = builder.Build();

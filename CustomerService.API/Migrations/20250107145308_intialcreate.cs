@@ -19,7 +19,8 @@ namespace CustomerService.API.Migrations
                     first_name = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: false),
                     last_name = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: false),
                     email = table.Column<string>(type: "character varying(255)", maxLength: 255, nullable: false),
-                    phone_number = table.Column<string>(type: "character varying(12)", maxLength: 12, nullable: false)
+                    phone_number = table.Column<string>(type: "character varying(12)", maxLength: 12, nullable: false),
+                    inactive_flag = table.Column<short>(type: "int2", nullable: false)
                 },
                 constraints: table =>
                 {

@@ -17,7 +17,7 @@ namespace ProductService.API.Infrastructure.Services
         private readonly IMessagePublisher<ProductDTO> _messagePublisher;
         private readonly ILogger<ProductServices> _logger;
         private readonly RabbitMQSettings _settings;
-        private readonly string dbconnection = "Host=dpg-ctaj11q3esus739aqeb0-a.oregon-postgres.render.com;Database=inventorymanagement_m3a1;Username=netconsumer;Password=y5oyt0LjENzsldOuO4zZ3mB2WbeM2ohw";
+        private readonly string dbconnection = "Host=dpg-ctuh03lds78s73fntmag-a.oregon-postgres.render.com;Database=order_management_db;Username=netconsumer;Password=wv5ZjPAcJY8ICgPJF0PZUV86qdKx2r7d";
         public ProductServices(IUnitOfWork unitOfWork, IMapper mapper, IMessagePublisher<ProductDTO> messagePublisher, ILogger<ProductServices> logger)
         {
             _unitOfWork = unitOfWork;

@@ -1,0 +1,37 @@
+﻿services:
+  kafka:
+    image: confluentinc/cp-kafka:latest
+    container_name: kafka-kraft
+    ports:
+      - "9092:9092"
+      - "29092:29092"
+    environment:
+      # KRaft required settings
+      CLUSTER_ID: "RkpDTktSQUZUMDAx"  # Fixed cluster ID
+      KAFKA_KRAFT_CLUSTER_ID: "RkpDTktSQUZUMDAx"  # Same as CLUSTER_ID
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: 'broker,controller'
+      KAFKA_CONTROLLER_QUORUM_VOTERS: '1@kafka:29093'
+      
+      # Listener configuration
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: 'CONTROLLER:PLAINTEXT,INTERNAL:PLAINTEXT,EXTERNAL:PLAINTEXT'
+      KAFKA_LISTENERS: 'INTERNAL://kafka:29092,CONTROLLER://kafka:29093,EXTERNAL://0.0.0.0:9092'
+      KAFKA_ADVERTISED_LISTENERS: 'INTERNAL://kafka:29092,EXTERNAL://localhost:9092'
+      KAFKA_INTER_BROKER_LISTENER_NAME: 'INTERNAL'
+      KAFKA_CONTROLLER_LISTENER_NAMES: 'CONTROLLER'
+      
+      # Other required settings
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+    volumes:
+      - kafka_data:/var/lib/kafka/data
+    healthcheck:
+      test: ["CMD-SHELL", "kafka-topics --bootstrap-server kafka:29092 --list"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+volumes:
+  kafka_data:
+    driver: local
