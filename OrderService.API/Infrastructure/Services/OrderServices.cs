@@ -6,6 +6,7 @@ using OrderService.API.Infrastructure.DTOs;
 using OrderService.API.Infrastructure.Entities;
 using OrderService.API.Infrastructure.KafkaMessageBroker;
 using OrderService.API.Infrastructure.RabbitMQMessageBroker;
+using OrderService.API.Infrastructure.RedisMessageBroker;
 using OrderService.API.Infrastructure.UnitOfWork;
 using SharedRepository.Repositories;
 
@@ -23,10 +24,14 @@ namespace OrderService.API.Infrastructure.Services
         private readonly IKafkaMessagePublisher<OrderDTO> _kafkamessagePublisher;
         private readonly KafkaSettings _kafkaSettings;
 
+        private readonly IRedisMessagePublisher<OrderDTO> _redisMessagePublisher;
+        private readonly RedisChannelSettings _redisChannelSettings;
+
         private readonly string dbconnection = "Host=dpg-ctuh03lds78s73fntmag-a.oregon-postgres.render.com;Database=order_management_db;Username=netconsumer;Password=wv5ZjPAcJY8ICgPJF0PZUV86qdKx2r7d";
         public OrderServices(IUnitOfWork unitOfWork, IDataAccessHelper dataAccessHelper, IMapper mapper, IMessagePublisher<OrderDTO> messagePublisher, ILogger<OrderServices> logger,
-          IKafkaMessagePublisher<OrderDTO> kafkamessagePublisher,
-    IOptions<KafkaSettings> kafkaSettings, IOptions<RabbitMQSettings> rabbitMQSettingsOptions)
+          IKafkaMessagePublisher<OrderDTO> kafkamessagePublisher, IRedisMessagePublisher<OrderDTO> redisMessagePublisher,
+    IOptions<KafkaSettings> kafkaSettings, IOptions<RabbitMQSettings> rabbitMQSettingsOptions,
+    IOptions<RedisChannelSettings> redisChannelSettings)
         {
             _unitOfWork = unitOfWork;
             _dataAccessHelper = dataAccessHelper;
@@ -34,9 +39,10 @@ namespace OrderService.API.Infrastructure.Services
             _messagePublisher = messagePublisher;
             _logger = logger;
             _rabbitMQSettings = rabbitMQSettingsOptions.Value;
-
             _kafkamessagePublisher = kafkamessagePublisher;
             _kafkaSettings = kafkaSettings.Value;
+            _redisMessagePublisher = redisMessagePublisher;
+            _redisChannelSettings = redisChannelSettings.Value;
         }
 
         public async Task<IEnumerable<OrderDTO>> GetAllOrdersAsync()
@@ -198,7 +204,21 @@ namespace OrderService.API.Infrastructure.Services
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error publishing OrderCreated event to RabbitMQ");
+                _logger.LogError(ex, "Error publishing OrderCreated event to Kafka");
+                throw;
+            }
+
+            // Redis publish message to ordercreated event for testing after publishing the message in RabbitMQ and kafka in the above line of code
+            try
+            {
+                // Publish the OrderCreated event message by using Redis Pub/Sub
+                await _redisMessagePublisher.PublishAsync(_mapper.Map<OrderDTO>(existingOrder ?? newOrder), _redisChannelSettings.OrderCreatedChannel);
+                _logger.LogInformation($"OrderCreated event published successfully for the {_redisChannelSettings.OrderCreatedChannel}.");
+
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error publishing OrderCreated event to Redis");
                 throw;
             }
 
@@ -311,6 +331,19 @@ namespace OrderService.API.Infrastructure.Services
                 throw;
             }
 
+            // Redis publish message to ordercreated event for testing after publishing the message in RabbitMQ and kafka in the above line of code
+            try
+            {
+                // Publish the OrderUpdated message by using Redis
+                await _redisMessagePublisher.PublishAsync(_mapper.Map<OrderDTO>(existingOrder), _redisChannelSettings.OrderUpdatedChannel);
+                _logger.LogInformation($"OrderUpdated Redis published successfully for the {_redisChannelSettings.OrderUpdatedChannel}.");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error publishing OrderUpdated message to kafka");
+                throw;
+            }
+
             return new OkObjectResult(new 
             { 
                 message = "Order updated successfully.", 
@@ -351,6 +384,19 @@ namespace OrderService.API.Infrastructure.Services
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error publishing OrderDeleted message to kafka");
+                throw;
+            }
+
+            // Redis publish message to ordercreated event for testing after publishing the message in RabbitMQ and kafka in the above line of code
+            try
+            {
+                // Publish the OrderUpdated message by using Redis
+                await _redisMessagePublisher.PublishAsync(_mapper.Map<OrderDTO>(order), _redisChannelSettings.OrderDeletedChannel);
+                _logger.LogInformation($"OrderDeleted kafka published successfully for the {_redisChannelSettings.OrderDeletedChannel}.");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error publishing OrderDeleted message to Redis");
                 throw;
             }
 
