@@ -34,4 +34,12 @@
     <ProjectReference Include="..\SharedRepository\SharedRepository.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Content Update="scerets.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <ExcludeFromSingleFile>true</ExcludeFromSingleFile>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+    </Content>
+  </ItemGroup>
+
 </Project>

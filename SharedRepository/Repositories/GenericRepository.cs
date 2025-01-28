@@ -1,15 +1,13 @@
-﻿using Microsoft.EntityFrameworkCore;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Linq.Expressions;
-using System.Text;
-using System.Threading.Tasks;
-using Dapper;
+﻿using Dapper;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Query;
-using Microsoft.Data.SqlClient;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 using Npgsql;
-using static Microsoft.EntityFrameworkCore.DbLoggerCategory;
+using SharedRepository.Audit;
+using System.Globalization;
+using System.Linq.Expressions;
+
 namespace SharedRepository.Repositories
 {
     public class GenericRepository<TEntity> : IGenericRepository<TEntity> where TEntity : class
@@ -109,6 +107,10 @@ namespace SharedRepository.Repositories
             _dbSet.RemoveRange(entities);
         }
 
+        public async Task<int> SaveChangesAsync()
+        {
+            return await _context.SaveChangesAsync();
+        }
 
         public async Task<bool> CustomerExistsAsync(Guid customerId)
         {
@@ -146,5 +148,33 @@ namespace SharedRepository.Repositories
             }
         }
 
+        public async Task<IEnumerable<object>> GetTransformedAuditsAsync()
+        {
+            var audits = await _dbSet.ToListAsync();
+            var transformedAudits = new List<object>();
+
+            foreach (var audit in audits)
+            {
+                if (audit is Auditing auditEntity)
+                {
+                    var auditData = JsonConvert.DeserializeObject<dynamic>(auditEntity.AuditJson);
+
+                    var transformedAudit = new
+                    {
+                        OprtnTyp = (int)auditData.OprtnTyp,
+                        UsrNm = (string)auditData.UsrNm,
+                        UsrNo = (int)auditData.UsrNo,
+                        LogDsc = auditData.LogDsc is JArray logDscArray
+                                  ? logDscArray.Select(x => x.ToString()).ToList()
+                                  : new List<string> { auditData.LogDsc.ToString() },
+                        LogTyp = (int)auditData.LogTyp,
+                        LogDate = DateTime.ParseExact(auditData.LogDate.ToString(), "dd/MM/yyyy HH:mm:ss.fff", CultureInfo.InvariantCulture)
+                                  .ToString("dd/MM/yyyy HH:mm:ss.fff", CultureInfo.InvariantCulture)
+                    };
+                    transformedAudits.Add(transformedAudit);
+                }
+            }
+            return transformedAudits;
+        }
     }
 }

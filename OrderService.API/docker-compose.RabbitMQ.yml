@@ -1,0 +1,13 @@
+﻿services:
+  rabbitmq:
+    image: "rabbitmq:latest"
+    container_name: "order-service-rabbitmq"
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    networks:
+      - order-service-network
+
+networks:
+  order-service-network:
+    external: true

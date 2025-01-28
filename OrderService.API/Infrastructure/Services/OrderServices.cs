@@ -1,13 +1,11 @@
 ﻿using AutoMapper;
+using MassTransit;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Options;
 using OrderService.API.Infrastructure.DTOs;
 using OrderService.API.Infrastructure.Entities;
-using OrderService.API.Infrastructure.KafkaMessageBroker;
-using OrderService.API.Infrastructure.RabbitMQMessageBroker;
-using OrderService.API.Infrastructure.RedisMessageBroker;
 using OrderService.API.Infrastructure.UnitOfWork;
+using SharedRepository.Audit;
 using SharedRepository.Repositories;
 
 namespace OrderService.API.Infrastructure.Services
@@ -17,34 +15,17 @@ namespace OrderService.API.Infrastructure.Services
         private readonly IUnitOfWork _unitOfWork;
         private readonly IMapper _mapper;
         private readonly IDataAccessHelper _dataAccessHelper;
-        private readonly IMessagePublisher<OrderDTO> _messagePublisher; 
-        private readonly ILogger<OrderServices> _logger;
-        private readonly RabbitMQSettings _rabbitMQSettings;
-
-        private readonly IKafkaMessagePublisher<OrderDTO> _kafkamessagePublisher;
-        private readonly KafkaSettings _kafkaSettings;
-
-        private readonly IRedisMessagePublisher<OrderDTO> _redisMessagePublisher;
-        private readonly RedisChannelSettings _redisChannelSettings;
-
-        private readonly string dbconnection = "Host=dpg-ctuh03lds78s73fntmag-a.oregon-postgres.render.com;Database=order_management_db;Username=netconsumer;Password=wv5ZjPAcJY8ICgPJF0PZUV86qdKx2r7d";
-        public OrderServices(IUnitOfWork unitOfWork, IDataAccessHelper dataAccessHelper, IMapper mapper, IMessagePublisher<OrderDTO> messagePublisher, ILogger<OrderServices> logger,
-          IKafkaMessagePublisher<OrderDTO> kafkamessagePublisher, IRedisMessagePublisher<OrderDTO> redisMessagePublisher,
-    IOptions<KafkaSettings> kafkaSettings, IOptions<RabbitMQSettings> rabbitMQSettingsOptions,
-    IOptions<RedisChannelSettings> redisChannelSettings)
+        private readonly IPublishEndpoint _publishEndpoint;
+        private readonly IHttpContextAccessor _httpContextAccessor;
+        private readonly string dbconnection = "Host=dpg-ctaj11q3esus739aqeb0-a.oregon-postgres.render.com;Database=inventorymanagement_m3a1;Username=netconsumer;Password=y5oyt0LjENzsldOuO4zZ3mB2WbeM2ohw";
+        public OrderServices(IUnitOfWork unitOfWork, IDataAccessHelper dataAccessHelper, IMapper mapper, IPublishEndpoint publishEndpoint, IHttpContextAccessor httpContextAccessor)
         {
             _unitOfWork = unitOfWork;
             _dataAccessHelper = dataAccessHelper;
             _mapper = mapper;
-            _messagePublisher = messagePublisher;
-            _logger = logger;
-            _rabbitMQSettings = rabbitMQSettingsOptions.Value;
-            _kafkamessagePublisher = kafkamessagePublisher;
-            _kafkaSettings = kafkaSettings.Value;
-            _redisMessagePublisher = redisMessagePublisher;
-            _redisChannelSettings = redisChannelSettings.Value;
+            _publishEndpoint = publishEndpoint;
+            _httpContextAccessor = httpContextAccessor;
         }
-
         public async Task<IEnumerable<OrderDTO>> GetAllOrdersAsync()
         {
             var orders = await _unitOfWork.Repository<Order>().GetAllAsync(
@@ -171,7 +152,6 @@ namespace OrderService.API.Infrastructure.Services
                 CalculateOrderTotals(newOrder, productDetailsCache);
                 await _unitOfWork.Repository<Order>().AddAsync(newOrder);
             }
-
             foreach (var orderitem in orderDto.OrderItems)
             {
                 var stockUpdated = await _dataAccessHelper.UpdateProductStockByOrderedAsync(orderitem.ProductId, -orderitem.Quantity);
@@ -182,51 +162,26 @@ namespace OrderService.API.Infrastructure.Services
             }
 
             await _unitOfWork.CompleteAsync();
-
-            try
+            var username = _httpContextAccessor.HttpContext?.User?.Identity?.Name ?? "administrator";
+            var auditMessage = new AuditMessage
             {
-                // Publish the OrderCreated event message by using RabbitMQ
-                // await _messagePublisher.PublishAsync(_mapper.Map<OrderDTO>(existingOrder ?? newOrder), "order_created_queue");
-                await _messagePublisher.PublishAsync(_mapper.Map<OrderDTO>(existingOrder ?? newOrder), _rabbitMQSettings.Queues.OrderCreated);
-                _logger.LogInformation($"OrderCreated event published successfully for the {_rabbitMQSettings.Queues.OrderCreated}.");
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error publishing OrderCreated event to RabbitMQ");
-                throw;
-            }
-
-            // kafka publish message to topic ordercreated for testing after publishing the message in RabbitMQ in the above line of code
-            try
-            {
-                await _kafkamessagePublisher.PublishAsync(_mapper.Map<OrderDTO>(existingOrder ?? newOrder), _kafkaSettings.Topics.OrderCreated);
-                _logger.LogInformation($"OrderCreated topic published successfully for the {_kafkaSettings.Topics.OrderCreated}.");
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error publishing OrderCreated event to Kafka");
-                throw;
-            }
-
-            // Redis publish message to ordercreated event for testing after publishing the message in RabbitMQ and kafka in the above line of code
-            try
-            {
-                // Publish the OrderCreated event message by using Redis Pub/Sub
-                await _redisMessagePublisher.PublishAsync(_mapper.Map<OrderDTO>(existingOrder ?? newOrder), _redisChannelSettings.OrderCreatedChannel);
-                _logger.LogInformation($"OrderCreated event published successfully for the {_redisChannelSettings.OrderCreatedChannel}.");
-
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error publishing OrderCreated event to Redis");
-                throw;
-            }
+                OprtnTyp = 1, 
+                UsrNm = username,
+                UsrNo = 1,
+                LogDsc = new List<string> { $"Created By {username} {DateTime.UtcNow.ToString("ddd MMM dd HH:mm:ss 'AST' yyyy")}" },
+                LogTyp = 1,
+                LogDate = DateTime.UtcNow,
+                ScreenName = "OrdersController",
+                ObjectName = "order",
+                ScreenPk = newOrder != null ? newOrder.OrderId : existingOrder.OrderId
+            };
+            await _publishEndpoint.Publish(auditMessage);
 
             return new OkObjectResult(_mapper.Map<OrderDTO>(existingOrder ?? newOrder));
         }
-
         public async Task<IActionResult> UpdateOrderAsync(OrderDTO orderDto)
         {
+            //Existing Code
             if (!await _dataAccessHelper.ExistsAsync("orders", "order_id", orderDto.OrderId))
             {
                 return new BadRequestObjectResult(new { message = $"Order with ID {orderDto.OrderId} does not exist." });
@@ -306,48 +261,25 @@ namespace OrderService.API.Infrastructure.Services
             _unitOfWork.Repository<Order>().Update(existingOrder);
             await _unitOfWork.CompleteAsync();
 
-            try
+            var username = _httpContextAccessor.HttpContext?.User?.Identity?.Name ?? "administrator";
+            var auditMessage = new AuditMessage
             {
-                // Publish the OrderUpdated event message by using RabbitMQ
-                await _messagePublisher.PublishAsync(_mapper.Map<OrderDTO>(existingOrder), _rabbitMQSettings.Queues.OrderUpdated);
-                _logger.LogInformation($"OrderUpdated event published successfully for the {_rabbitMQSettings.Queues.OrderUpdated}.");
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error publishing OrderUpdated event to RabbitMQ");
-                throw;
-            }
+                OprtnTyp = 2, 
+                UsrNm = username,
+                UsrNo = 1,
+                LogDsc = new List<string> { $"Updated By {username} {DateTime.UtcNow.ToString("ddd MMM dd HH:mm:ss 'UTC' yyyy")}" },
+                LogTyp = 1,
+                LogDate = DateTime.UtcNow,
+                ScreenName = "OrdersController",
+                ObjectName = "order",
+                ScreenPk = existingOrder.OrderId
+            };
+            await _publishEndpoint.Publish(auditMessage);
 
-            // kafka publish message to topic orderupdated for testing after publishing the message in RabbitMQ in the above line of code
-            try
+            return new OkObjectResult(new
             {
-                // Publish the OrderUpdated message by using kafka
-                await _kafkamessagePublisher.PublishAsync(_mapper.Map<OrderDTO>(existingOrder), _kafkaSettings.Topics.OrderUpdated);
-                _logger.LogInformation($"OrderUpdated kafka published successfully for the {_kafkaSettings.Topics.OrderUpdated}.");
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error publishing OrderUpdated message to kafka");
-                throw;
-            }
-
-            // Redis publish message to ordercreated event for testing after publishing the message in RabbitMQ and kafka in the above line of code
-            try
-            {
-                // Publish the OrderUpdated message by using Redis
-                await _redisMessagePublisher.PublishAsync(_mapper.Map<OrderDTO>(existingOrder), _redisChannelSettings.OrderUpdatedChannel);
-                _logger.LogInformation($"OrderUpdated Redis published successfully for the {_redisChannelSettings.OrderUpdatedChannel}.");
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error publishing OrderUpdated message to kafka");
-                throw;
-            }
-
-            return new OkObjectResult(new 
-            { 
-                message = "Order updated successfully.", 
-                order = _mapper.Map<OrderDTO>(existingOrder) 
+                message = "Order updated successfully.",
+                order = _mapper.Map<OrderDTO>(existingOrder)
             });
         }
 
@@ -357,52 +289,28 @@ namespace OrderService.API.Infrastructure.Services
             if (order == null)
             {
                 return new BadRequestObjectResult(new { message = $"Order with ID {id} not found." });
-                
+
             }
             _unitOfWork.Repository<Order>().Remove(order);
             await _unitOfWork.CompleteAsync();
 
-            try
+            var username = _httpContextAccessor.HttpContext?.User?.Identity?.Name ?? "System";
+            var auditMessage = new AuditMessage
             {
-                // Publish the OrderDeleted event message by using RabbitMQ
-                await _messagePublisher.PublishAsync(_mapper.Map<OrderDTO>(order), _rabbitMQSettings.Queues.OrderDeleted);
-                _logger.LogInformation($"OrderDeleted event published successfully for the {_rabbitMQSettings.Queues.OrderDeleted}.");
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error publishing OrderDeleted event to RabbitMQ");
-                throw;
-            }
-
-            // kafka publish message to topic orderdeleted for testing after publishing the message in RabbitMQ in the above line of code
-            try
-            {
-                // Publish the OrderUpdated message by using kafka
-                await _kafkamessagePublisher.PublishAsync(_mapper.Map<OrderDTO>(order), _kafkaSettings.Topics.OrderDeleted);
-                _logger.LogInformation($"OrderDeleted kafka published successfully for the {_kafkaSettings.Topics.OrderDeleted}.");
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error publishing OrderDeleted message to kafka");
-                throw;
-            }
-
-            // Redis publish message to ordercreated event for testing after publishing the message in RabbitMQ and kafka in the above line of code
-            try
-            {
-                // Publish the OrderUpdated message by using Redis
-                await _redisMessagePublisher.PublishAsync(_mapper.Map<OrderDTO>(order), _redisChannelSettings.OrderDeletedChannel);
-                _logger.LogInformation($"OrderDeleted kafka published successfully for the {_redisChannelSettings.OrderDeletedChannel}.");
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error publishing OrderDeleted message to Redis");
-                throw;
-            }
+                OprtnTyp = 3, 
+                UsrNm = username, 
+                UsrNo = 1,
+                LogDsc = new List<string> { $"Deleted By {username} {DateTime.UtcNow.ToString("ddd MMM dd HH:mm:ss 'UTC' yyyy")}" },
+                LogTyp = 1,
+                LogDate = DateTime.UtcNow,
+                ScreenName = "OrdersController",
+                ObjectName = "order",
+                ScreenPk = id
+            };
+            await _publishEndpoint.Publish(auditMessage);
 
             return new OkObjectResult(new { message = "Order deleted successfully." });
         }
-
         private void CalculateOrderTotals(Order order, Dictionary<int, (decimal Price, decimal TaxPercentage)> productDetailsCache)
         {
             decimal totalAmount = 0;

@@ -1,10 +1,6 @@
 ﻿using Microsoft.EntityFrameworkCore.Query;
-using System;
-using System.Collections.Generic;
-using System.Linq;
+using SharedRepository.Audit;
 using System.Linq.Expressions;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace SharedRepository.Repositories
 {
@@ -29,8 +25,12 @@ namespace SharedRepository.Repositories
         void Remove(TEntity entity);
         void RemoveRange(IEnumerable<TEntity> entities);
 
+        Task<int> SaveChangesAsync();
+
         Task<bool> CustomerExistsAsync(Guid customerId);
         public Task<(decimal Price, decimal TaxPercentage)> GetProductDetailsAsync(int productId);
+
+        Task<IEnumerable<object>> GetTransformedAuditsAsync();
 
     }
 }

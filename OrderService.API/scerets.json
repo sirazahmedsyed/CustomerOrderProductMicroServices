@@ -1,0 +1,9 @@
+{
+  "RabbitConfiguration": {
+    "Host": "localhost",
+    "UserName": "guest",
+    "Password": "guest",
+    //"VirtualHost": "/",
+    //"Port": 6379
+  }
+}
