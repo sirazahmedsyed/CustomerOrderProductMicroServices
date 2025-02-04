@@ -34,7 +34,7 @@ namespace AuditSrvice.API.Infrastructure.Consumers
 
                 var auditEntry = new Auditing
                 {
-                    ScreenName = message.ScreenName,    
+                    ScreenName = message.ScreenName,
                     ObjectName = message.ObjectName,
                     ScreenPk = message.ScreenPk,
                     AuditJson = JsonConvert.SerializeObject(auditDto, new JsonSerializerSettings

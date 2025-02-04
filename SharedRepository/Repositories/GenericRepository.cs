@@ -161,20 +161,47 @@ namespace SharedRepository.Repositories
 
                     var transformedAudit = new
                     {
-                        OprtnTyp = (int)auditData.OprtnTyp,
-                        UsrNm = (string)auditData.UsrNm,
-                        UsrNo = (int)auditData.UsrNo,
-                        LogDsc = auditData.LogDsc is JArray logDscArray
-                                  ? logDscArray.Select(x => x.ToString()).ToList()
-                                  : new List<string> { auditData.LogDsc.ToString() },
-                        LogTyp = (int)auditData.LogTyp,
-                        LogDate = DateTime.ParseExact(auditData.LogDate.ToString(), "dd/MM/yyyy HH:mm:ss.fff", CultureInfo.InvariantCulture)
-                                  .ToString("dd/MM/yyyy HH:mm:ss.fff", CultureInfo.InvariantCulture)
+                        oprtnTyp = (int)auditData.OprtnTyp,
+                        usrNm = (string)auditData.UsrNm,
+                        usrNo = (int)auditData.UsrNo,
+                        logDsc = ((JArray)auditData.LogDsc).Select(x => x.ToString()).ToList(),
+                        logTyp = (int)auditData.LogTyp,
+                        // Ensure the date format matches the desired output
+                        logDate = (string)auditData.LogDate
                     };
                     transformedAudits.Add(transformedAudit);
                 }
             }
             return transformedAudits;
         }
+
+        //public async Task<IEnumerable<object>> GetTransformedAuditsAsync()
+        //{
+        //    var audits = await _dbSet.ToListAsync();
+        //    var transformedAudits = new List<object>();
+
+        //    foreach (var audit in audits)
+        //    {
+        //        if (audit is Auditing auditEntity)
+        //        {
+        //            var auditData = JsonConvert.DeserializeObject<dynamic>(auditEntity.AuditJson);
+
+        //            var transformedAudit = new
+        //            {
+        //                OprtnTyp = (int)auditData.OprtnTyp,
+        //                UsrNm = (string)auditData.UsrNm,
+        //                UsrNo = (int)auditData.UsrNo,
+        //                LogDsc = auditData.LogDsc is JArray logDscArray
+        //                          ? logDscArray.Select(x => x.ToString()).ToList()
+        //                          : new List<string> { auditData.LogDsc.ToString() },
+        //                LogTyp = (int)auditData.LogTyp,
+        //                LogDate = DateTime.ParseExact(auditData.LogDate.ToString(), "dd/MM/yyyy HH:mm:ss.fff", CultureInfo.InvariantCulture)
+        //                          .ToString("dd/MM/yyyy HH:mm:ss.fff", CultureInfo.InvariantCulture)
+        //            };
+        //            transformedAudits.Add(transformedAudit);
+        //        }
+        //    }
+        //    return transformedAudits;
+        //}
     }
 }

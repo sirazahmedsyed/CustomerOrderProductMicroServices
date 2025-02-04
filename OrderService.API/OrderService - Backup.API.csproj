@@ -31,7 +31,6 @@
 
   <ItemGroup>
     <ProjectReference Include="..\RabbitMQHelper\RabbitMQHelper.csproj" />
-    <ProjectReference Include="..\SharedRepository\SharedRepository.csproj" />
   </ItemGroup>
 
   <ItemGroup>

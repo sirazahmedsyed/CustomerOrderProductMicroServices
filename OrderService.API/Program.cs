@@ -4,8 +4,8 @@ using OrderService.API.Infrastructure.DBContext;
 using OrderService.API.Infrastructure.Profiles;
 using OrderService.API.Infrastructure.Services;
 using OrderService.API.Infrastructure.UnitOfWork;
+using RabbitMQHelper.Infrastructure.Extensions;
 using SharedRepository.Authorization;
-using SharedRepository.MassTransit;
 using SharedRepository.Repositories;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -18,21 +18,17 @@ builder.Services.AddDbContext<OrderDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
 
 builder.Services.AddHttpContextAccessor();
-
-builder.Services.AddCustomMassTransit(builder.Configuration, mt =>
-{
-    //mt.AddConsumer<AuditConsumer>();
-});
+builder.Services.AddRabbitMQPublisher(builder.Configuration);
 
 builder.Services.AddAutoMapper(typeof(MappingProfile));
 builder.Services.AddScoped(typeof(IGenericRepository<>), typeof(GenericRepository<>));
-
 builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
 builder.Services.AddScoped<IOrderService, OrderServices>();
 builder.Services.AddSingleton<ProductDetailsClient>();
 builder.Services.AddSingleton<InactiveFlagClient>();
 builder.Services.AddSingleton<CustomerClient>();
 builder.Services.AddScoped<IDataAccessHelper, DataAccessHelper>();
+
 
 builder.Services.AddControllers();
 var app = builder.Build();

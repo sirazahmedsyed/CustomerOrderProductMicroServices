@@ -1,11 +1,11 @@
 ﻿using AutoMapper;
-using MassTransit;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using OrderService.API.Infrastructure.DTOs;
 using OrderService.API.Infrastructure.Entities;
 using OrderService.API.Infrastructure.UnitOfWork;
-using SharedRepository.Audit;
+using RabbitMQHelper.Infrastructure.DTOs;
+using RabbitMQHelper.Infrastructure.Helpers;
 using SharedRepository.Repositories;
 
 namespace OrderService.API.Infrastructure.Services
@@ -15,16 +15,16 @@ namespace OrderService.API.Infrastructure.Services
         private readonly IUnitOfWork _unitOfWork;
         private readonly IMapper _mapper;
         private readonly IDataAccessHelper _dataAccessHelper;
-        private readonly IPublishEndpoint _publishEndpoint;
         private readonly IHttpContextAccessor _httpContextAccessor;
+        private readonly IRabbitMQHelper _rabbitMQHelper;
         private readonly string dbconnection = "Host=dpg-ctaj11q3esus739aqeb0-a.oregon-postgres.render.com;Database=inventorymanagement_m3a1;Username=netconsumer;Password=y5oyt0LjENzsldOuO4zZ3mB2WbeM2ohw";
-        public OrderServices(IUnitOfWork unitOfWork, IDataAccessHelper dataAccessHelper, IMapper mapper, IPublishEndpoint publishEndpoint, IHttpContextAccessor httpContextAccessor)
+        public OrderServices(IUnitOfWork unitOfWork, IDataAccessHelper dataAccessHelper, IMapper mapper, IHttpContextAccessor httpContextAccessor, IRabbitMQHelper rabbitMQHelper)
         {
             _unitOfWork = unitOfWork;
             _dataAccessHelper = dataAccessHelper;
             _mapper = mapper;
-            _publishEndpoint = publishEndpoint;
             _httpContextAccessor = httpContextAccessor;
+            _rabbitMQHelper = rabbitMQHelper;
         }
         public async Task<IEnumerable<OrderDTO>> GetAllOrdersAsync()
         {
@@ -94,41 +94,6 @@ namespace OrderService.API.Infrastructure.Services
                 }
             }
 
-            var existingOrder = (await _unitOfWork.Repository<Order>()
-                .GetAllAsync(
-                    o => o.CustomerId == orderDto.CustomerId &&
-                    o.OrderItems.Any(oi => groupedOrderItems.Select(i => i.ProductId).Contains(oi.ProductId)),
-                    include: q => q.Include(o => o.OrderItems)))
-                .FirstOrDefault();
-
-            Order newOrder = null;
-            if (existingOrder != null)
-            {
-                foreach (var itemDto in groupedOrderItems)
-                {
-                    var existingItem = existingOrder.OrderItems.FirstOrDefault(oi => oi.ProductId == itemDto.ProductId);
-                    var (price, tax) = productDetailsCache[itemDto.ProductId];
-
-                    if (existingItem != null)
-                    {
-                        existingItem.Quantity += itemDto.Quantity;
-                    }
-                    else
-                    {
-                        existingOrder.OrderItems.Add(new OrderItem
-                        {
-                            ProductId = itemDto.ProductId,
-                            Quantity = itemDto.Quantity,
-                            UnitPrice = price
-                        });
-                    }
-                }
-
-                CalculateOrderTotals(existingOrder, productDetailsCache);
-                _unitOfWork.Repository<Order>().Update(existingOrder);
-            }
-            else
-            {
                 var orderItems = groupedOrderItems.Select(item =>
                 {
                     var (price, tax) = productDetailsCache[item.ProductId];
@@ -140,7 +105,7 @@ namespace OrderService.API.Infrastructure.Services
                     };
                 }).ToList();
 
-                newOrder = new Order
+                Order newOrder = new Order
                 {
                     OrderId = Guid.NewGuid(),
                     CustomerId = orderDto.CustomerId,
@@ -151,7 +116,7 @@ namespace OrderService.API.Infrastructure.Services
 
                 CalculateOrderTotals(newOrder, productDetailsCache);
                 await _unitOfWork.Repository<Order>().AddAsync(newOrder);
-            }
+            
             foreach (var orderitem in orderDto.OrderItems)
             {
                 var stockUpdated = await _dataAccessHelper.UpdateProductStockByOrderedAsync(orderitem.ProductId, -orderitem.Quantity);
@@ -162,10 +127,10 @@ namespace OrderService.API.Infrastructure.Services
             }
 
             await _unitOfWork.CompleteAsync();
-            var username = _httpContextAccessor.HttpContext?.User?.Identity?.Name ?? "administrator";
-            var auditMessage = new AuditMessage
+            var username = _httpContextAccessor.HttpContext?.User?.Identity?.Name;
+            var auditMessageDto = new AuditMessageDto
             {
-                OprtnTyp = 1, 
+                OprtnTyp = 1,
                 UsrNm = username,
                 UsrNo = 1,
                 LogDsc = new List<string> { $"Created By {username} {DateTime.UtcNow.ToString("ddd MMM dd HH:mm:ss 'AST' yyyy")}" },
@@ -173,15 +138,14 @@ namespace OrderService.API.Infrastructure.Services
                 LogDate = DateTime.UtcNow,
                 ScreenName = "OrdersController",
                 ObjectName = "order",
-                ScreenPk = newOrder != null ? newOrder.OrderId : existingOrder.OrderId
+                ScreenPk = newOrder.OrderId
             };
-            await _publishEndpoint.Publish(auditMessage);
+            await _rabbitMQHelper.AuditResAsync(auditMessageDto);
 
-            return new OkObjectResult(_mapper.Map<OrderDTO>(existingOrder ?? newOrder));
+            return new OkObjectResult(_mapper.Map<OrderDTO>(newOrder));
         }
         public async Task<IActionResult> UpdateOrderAsync(OrderDTO orderDto)
         {
-            //Existing Code
             if (!await _dataAccessHelper.ExistsAsync("orders", "order_id", orderDto.OrderId))
             {
                 return new BadRequestObjectResult(new { message = $"Order with ID {orderDto.OrderId} does not exist." });
@@ -261,8 +225,8 @@ namespace OrderService.API.Infrastructure.Services
             _unitOfWork.Repository<Order>().Update(existingOrder);
             await _unitOfWork.CompleteAsync();
 
-            var username = _httpContextAccessor.HttpContext?.User?.Identity?.Name ?? "administrator";
-            var auditMessage = new AuditMessage
+            var username = _httpContextAccessor.HttpContext?.User?.Identity?.Name;
+            var auditMessageDto = new AuditMessageDto
             {
                 OprtnTyp = 2, 
                 UsrNm = username,
@@ -274,7 +238,7 @@ namespace OrderService.API.Infrastructure.Services
                 ObjectName = "order",
                 ScreenPk = existingOrder.OrderId
             };
-            await _publishEndpoint.Publish(auditMessage);
+            await _rabbitMQHelper.AuditResAsync(auditMessageDto);
 
             return new OkObjectResult(new
             {
@@ -294,8 +258,8 @@ namespace OrderService.API.Infrastructure.Services
             _unitOfWork.Repository<Order>().Remove(order);
             await _unitOfWork.CompleteAsync();
 
-            var username = _httpContextAccessor.HttpContext?.User?.Identity?.Name ?? "System";
-            var auditMessage = new AuditMessage
+            var username = _httpContextAccessor.HttpContext?.User?.Identity?.Name;
+            var auditMessageDto = new AuditMessageDto
             {
                 OprtnTyp = 3, 
                 UsrNm = username, 
@@ -307,7 +271,7 @@ namespace OrderService.API.Infrastructure.Services
                 ObjectName = "order",
                 ScreenPk = id
             };
-            await _publishEndpoint.Publish(auditMessage);
+            await _rabbitMQHelper.AuditResAsync(auditMessageDto);
 
             return new OkObjectResult(new { message = "Order deleted successfully." });
         }

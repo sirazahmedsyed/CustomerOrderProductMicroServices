@@ -9,6 +9,7 @@ namespace SharedRepository.MassTransit
     {
         public static void AddCustomMassTransit(this IServiceCollection services, IConfiguration configuration, Action<IBusRegistrationConfigurator> configureConsumers)
         {
+            
             services.AddMassTransit(mt =>
             {
                 configureConsumers(mt);
