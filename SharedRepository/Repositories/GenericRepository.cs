@@ -14,7 +14,7 @@ namespace SharedRepository.Repositories
     {
         protected readonly DbContext _context;
         protected readonly DbSet<TEntity> _dbSet;
-        private readonly string dbconnection = "Host=dpg-ctuh03lds78s73fntmag-a.oregon-postgres.render.com;Database=order_management_db;Username=netconsumer;Password=wv5ZjPAcJY8ICgPJF0PZUV86qdKx2r7d";
+        private readonly string dbconnection = "Host=dpg-cuk9b12j1k6c73d5dg20-a.oregon-postgres.render.com;Database=order_management_db_284m;Username=netconsumer;Password=6j9xg3A37zfiU5iRMLqdJmt6YPN46wLZ";
         public GenericRepository(DbContext context)
         {
             _context = context;

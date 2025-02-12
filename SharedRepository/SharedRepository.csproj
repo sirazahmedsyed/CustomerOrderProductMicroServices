@@ -9,22 +9,25 @@
 
   <ItemGroup>
     <Compile Remove="Authorizationold\**" />
+    <Compile Remove="RabbitMQMessageBroker\**" />
     <EmbeddedResource Remove="Authorizationold\**" />
+    <EmbeddedResource Remove="RabbitMQMessageBroker\**" />
     <None Remove="Authorizationold\**" />
+    <None Remove="RabbitMQMessageBroker\**" />
   </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="Dapper" Version="2.1.35" />
-    <PackageReference Include="MassTransit" Version="7.3.1" />
+    <PackageReference Include="MassTransit" Version="8.3.6" />
     <PackageReference Include="MassTransit.Extensions.DependencyInjection" Version="7.3.1" />
-    <PackageReference Include="MassTransit.RabbitMQ" Version="7.3.1" />
+    <PackageReference Include="MassTransit.RabbitMQ" Version="8.3.6" />
     <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="8.0.8" />
     <PackageReference Include="Microsoft.Data.SqlClient" Version="5.2.2" />
     <PackageReference Include="Microsoft.EntityFrameworkCore" Version="8.0.8" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" Version="8.0.8" />
     <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
     <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="8.0.4" />
-    <PackageReference Include="RabbitMQ.Client" Version="6.8.1" />
+    <PackageReference Include="RabbitMQ.Client" Version="7.0.0" />
     <PackageReference Include="Swashbuckle.AspNetCore.SwaggerGen" Version="6.8.0" /> 
   </ItemGroup>
 

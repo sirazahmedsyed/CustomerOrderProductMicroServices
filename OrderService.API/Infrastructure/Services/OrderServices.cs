@@ -17,7 +17,7 @@ namespace OrderService.API.Infrastructure.Services
         private readonly IDataAccessHelper _dataAccessHelper;
         private readonly IHttpContextAccessor _httpContextAccessor;
         private readonly IRabbitMQHelper _rabbitMQHelper;
-        private readonly string dbconnection = "Host=dpg-ctaj11q3esus739aqeb0-a.oregon-postgres.render.com;Database=inventorymanagement_m3a1;Username=netconsumer;Password=y5oyt0LjENzsldOuO4zZ3mB2WbeM2ohw";
+        private readonly string dbconnection = "Host=dpg-cuk9b12j1k6c73d5dg20-a.oregon-postgres.render.com;Database=order_management_db_284m;Username=netconsumer;Password=6j9xg3A37zfiU5iRMLqdJmt6YPN46wLZ";
         public OrderServices(IUnitOfWork unitOfWork, IDataAccessHelper dataAccessHelper, IMapper mapper, IHttpContextAccessor httpContextAccessor, IRabbitMQHelper rabbitMQHelper)
         {
             _unitOfWork = unitOfWork;

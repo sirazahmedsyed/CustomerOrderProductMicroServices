@@ -1,4 +1,4 @@
-﻿namespace SharedRepository.Audit
+﻿namespace AuditSrvice.API.Infrastructure.DTOs
 {
     public class AuditLogDto
     {

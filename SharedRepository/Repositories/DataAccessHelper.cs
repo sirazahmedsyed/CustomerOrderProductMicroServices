@@ -7,7 +7,7 @@ namespace SharedRepository.Repositories
 {
     public class DataAccessHelper : IDataAccessHelper
     {
-        private readonly string _dbconnection = "Host=dpg-ctuh03lds78s73fntmag-a.oregon-postgres.render.com;Database=order_management_db;Username=netconsumer;Password=wv5ZjPAcJY8ICgPJF0PZUV86qdKx2r7d";
+        private readonly string _dbconnection = "Host=dpg-cuk9b12j1k6c73d5dg20-a.oregon-postgres.render.com;Database=order_management_db_284m;Username=netconsumer;Password=6j9xg3A37zfiU5iRMLqdJmt6YPN46wLZ";
         private readonly InactiveFlagClient _inactiveFlagClient;
         private readonly ProductDetailsClient _productDetailsClient;
         private readonly CustomerClient _customerClient;

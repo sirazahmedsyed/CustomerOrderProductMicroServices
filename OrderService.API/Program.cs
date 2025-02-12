@@ -18,7 +18,7 @@ builder.Services.AddDbContext<OrderDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
 
 builder.Services.AddHttpContextAccessor();
-builder.Services.AddRabbitMQPublisher(builder.Configuration);
+builder.Services.AddRabbitMQPublisher(builder.Configuration, config =>{ });
 
 builder.Services.AddAutoMapper(typeof(MappingProfile));
 builder.Services.AddScoped(typeof(IGenericRepository<>), typeof(GenericRepository<>));

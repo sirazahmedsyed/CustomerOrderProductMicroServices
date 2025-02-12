@@ -14,7 +14,7 @@ namespace CustomerService.API.Infrastructure.Services
         private readonly IUnitOfWork _unitOfWork;
         private readonly IMapper _mapper;
         private readonly IDataAccessHelper _dataAccessHelper;
-        private readonly string dbconnection = "Host=dpg-ctuh03lds78s73fntmag-a.oregon-postgres.render.com;Database=order_management_db;Username=netconsumer;Password=wv5ZjPAcJY8ICgPJF0PZUV86qdKx2r7d";
+        private readonly string dbconnection = "Host=dpg-cuk9b12j1k6c73d5dg20-a.oregon-postgres.render.com;Database=order_management_db_284m;Username=netconsumer;Password=6j9xg3A37zfiU5iRMLqdJmt6YPN46wLZ";
         public CustomerServices(IUnitOfWork unitOfWork, IMapper mapper, IDataAccessHelper dataAccessHelper)
         {
             _unitOfWork = unitOfWork;

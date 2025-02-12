@@ -1,11 +1,12 @@
 ﻿using MassTransit;
 using Newtonsoft.Json;
-using SharedRepository.Audit;
 using SharedRepository.Repositories;
+using SharedRepository.Audit;
+using AuditSrvice.API.Infrastructure.DTOs;
 
 namespace AuditSrvice.API.Infrastructure.Consumers
 {
-    public class AuditConsumer : IConsumer<AuditMessage>
+    public class AuditConsumer : IConsumer<AuditMessageDto>
     {
         private readonly IAuditRepository _auditRepository;
         private readonly ILogger<AuditConsumer> _logger;
@@ -16,7 +17,7 @@ namespace AuditSrvice.API.Infrastructure.Consumers
             _logger = logger;
         }
 
-        public async Task Consume(ConsumeContext<AuditMessage> context)
+        public async Task Consume(ConsumeContext<AuditMessageDto> context)
         {
             var message = context.Message;
 
