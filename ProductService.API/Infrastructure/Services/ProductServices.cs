@@ -1,12 +1,16 @@
 ﻿using AutoMapper;
 using Dapper;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Options;
 using Npgsql;
 using ProductService.API.Infrastructure.DTOs;
 using ProductService.API.Infrastructure.Entities;
 using ProductService.API.Infrastructure.UnitOfWork;
-using SharedRepository.RabbitMQMessageBroker.Interfaces;
-using SharedRepository.RabbitMQMessageBroker.Settings;
+using RabbitMQHelper.Infrastructure.DTOs;
+using RabbitMQHelper.Infrastructure.Helpers;
+using SharedRepository.RedisCache;
+//using SharedRepository.RabbitMQMessageBroker.Interfaces;
+//using SharedRepository.RabbitMQMessageBroker.Settings;
 
 namespace ProductService.API.Infrastructure.Services
 {
@@ -14,97 +18,122 @@ namespace ProductService.API.Infrastructure.Services
     {
         private readonly IUnitOfWork _unitOfWork;
         private readonly IMapper _mapper;
-        private readonly IMessagePublisher<ProductDTO> _messagePublisher;
         private readonly ILogger<ProductServices> _logger;
-        private readonly RabbitMQSettings _settings;
+        private readonly ICacheService _cacheService;
+        private readonly IRabbitMQHelper _rabbitMQHelper;
+        private readonly IHttpContextAccessor _httpContextAccessor;
         private readonly string dbconnection = "Host=dpg-cuk9b12j1k6c73d5dg20-a.oregon-postgres.render.com;Database=order_management_db_284m;Username=netconsumer;Password=6j9xg3A37zfiU5iRMLqdJmt6YPN46wLZ";
-        public ProductServices(IUnitOfWork unitOfWork, IMapper mapper, IMessagePublisher<ProductDTO> messagePublisher, ILogger<ProductServices> logger)
+
+        private const string ALL_PRODUCTS_KEY = "products:all";
+        private const string PRODUCT_KEY_PREFIX = "product:";
+
+        public ProductServices(IUnitOfWork unitOfWork, IMapper mapper, ILogger<ProductServices> logger, ICacheService cacheService, IRabbitMQHelper rabbitMQHelper,
+            IHttpContextAccessor httpContextAccessor)
         {
             _unitOfWork = unitOfWork;
             _mapper = mapper;
-            _messagePublisher = messagePublisher;
-            _settings = RabbitMQConfigurations.DefaultSettings;
             _logger = logger;
+            _cacheService = cacheService;
+            _rabbitMQHelper = rabbitMQHelper;
+            _httpContextAccessor = httpContextAccessor;
         }
 
         public async Task<IEnumerable<ProductDTO>> GetAllProductsAsync()
         {
+            var cachedProducts = await _cacheService.GetAsync<IEnumerable<ProductDTO>>(ALL_PRODUCTS_KEY);
+            if (cachedProducts != null)
+            {
+                _logger.LogInformation("Retrieved products from cache");
+                return cachedProducts;
+            }
+
             var products = await _unitOfWork.Repository<Product>().GetAllAsync();
-            return _mapper.Map<IEnumerable<ProductDTO>>(products);
+            var productDtos = _mapper.Map<IEnumerable<ProductDTO>>(products);
+
+            await _cacheService.SetAsync(ALL_PRODUCTS_KEY, productDtos, TimeSpan.FromMinutes(5));
+
+            return productDtos;
         }
+
 
         public async Task<ProductDTO> GetProductByIdAsync(int id)
         {
+            var cacheKey = $"{PRODUCT_KEY_PREFIX}{id}";
+
+            var cachedProduct = await _cacheService.GetAsync<ProductDTO>(cacheKey);
+            if (cachedProduct != null)
+            {
+                _logger.LogInformation($"Retrieved product {id} from cache");
+                return cachedProduct;
+            }
+
             var product = await _unitOfWork.Repository<Product>().GetByIdAsync(id);
-            return _mapper.Map<ProductDTO>(product);
+            if (product == null) return null;
+
+            var productDto = _mapper.Map<ProductDTO>(product);
+
+            await _cacheService.SetAsync(cacheKey, productDto, TimeSpan.FromMinutes(30));
+
+            return productDto;
         }
 
         public async Task<IActionResult> AddProductAsync(ProductDTO productDto)
         {
             await using var connection = new NpgsqlConnection(dbconnection);
             await connection.OpenAsync();
-            Console.WriteLine($"connection opened : {connection}");
 
-            var existingProductByName = await connection.QuerySingleOrDefaultAsync<string>($"select name from products where name = '{productDto.Name}'");
+            var existingProductByName = await connection.QuerySingleOrDefaultAsync<string>(
+                $"select name from products where name = '{productDto.Name}'");
 
             if (existingProductByName != null)
             {
-                return new BadRequestObjectResult(new { message = $"Duplicate product not allowed for this product {productDto.Name}" });
+                return new BadRequestObjectResult(new
+                {
+                    message = $"Duplicate product not allowed for this product {productDto.Name}"
+                });
             }
 
             var product = _mapper.Map<Product>(productDto);
             await _unitOfWork.Repository<Product>().AddAsync(product);
             await _unitOfWork.CompleteAsync();
 
-            try
-            {
-                // Publish the OrderCreated event message by using RabbitMQ
-                await _messagePublisher.PublishAsync(_mapper.Map<ProductDTO>(product), _settings.Queues.ProductCreated);
-                _logger.LogInformation($"ProductCreated event published successfully for the {_settings.Queues.ProductCreated}.");
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error publishing ProductCreated event to RabbitMQ");
-                throw;
-            }
+            await _cacheService.RemoveAsync(ALL_PRODUCTS_KEY);
+
+            var newProductDto = _mapper.Map<ProductDTO>(product);
+            await _cacheService.SetAsync(
+                $"{PRODUCT_KEY_PREFIX}{product.ProductId}",
+                newProductDto
+            );
+
+            await SendAuditMessage(1, product.ProductId, "Created");
 
             return new OkObjectResult(new
             {
                 message = "Product created successfully",
-                product = _mapper.Map<ProductDTO>(product)
+                product = newProductDto
             });
         }
 
         public async Task<IActionResult> UpdateProductAsync(ProductDTO productDto)
         {
-
-            var connection = new NpgsqlConnection(dbconnection);
-            connection.Open();
-            Console.WriteLine($"connection opened : {connection}");
-
-            var existingProduct = await connection.QuerySingleOrDefaultAsync<Product>($"SELECT * FROM products WHERE product_id = '{productDto.ProductId}'");
-
-            //var existingProduct = await _unitOfWork.Repository<Product>().GetByIdAsync(productDto.ProductId);
+            var existingProduct = await _unitOfWork.Repository<Product>().GetByIdAsync(productDto.ProductId);
             if (existingProduct == null)
-            { 
-                return new BadRequestObjectResult(new { message = $"Product is not availble for this {productDto.ProductId} productId" });
+            {
+                return new BadRequestObjectResult(new
+                {
+                    message = $"Product is not available for this {productDto.ProductId} productId"
+                });
             }
 
-            _mapper.Map(productDto, existingProduct); 
+            _mapper.Map(productDto, existingProduct);
             _unitOfWork.Repository<Product>().Update(existingProduct);
             await _unitOfWork.CompleteAsync();
 
-            try
-            {
-                // Publish the OrderCreated event message by using RabbitMQ
-                await _messagePublisher.PublishAsync(_mapper.Map<ProductDTO>(existingProduct), _settings.Queues.ProductUpdated);
-                _logger.LogInformation($"ProductUpdated event published successfully for the {_settings.Queues.ProductUpdated}.");
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error publishing ProductUpdated event to RabbitMQ");
-                throw;
-            }
+            await _cacheService.RemoveAsync($"{PRODUCT_KEY_PREFIX}{productDto.ProductId}");
+            await _cacheService.RemoveAsync(ALL_PRODUCTS_KEY);
+
+            await SendAuditMessage(2, productDto.ProductId, "Updated");
+
 
             return new OkObjectResult(new
             {
@@ -112,30 +141,46 @@ namespace ProductService.API.Infrastructure.Services
                 product = _mapper.Map<ProductDTO>(existingProduct)
             });
         }
+
         public async Task<IActionResult> DeleteProductAsync(int id)
         {
             var product = await _unitOfWork.Repository<Product>().GetByIdAsync(id);
             if (product == null)
             {
-                return new BadRequestObjectResult(new { message = $"Product with ID {id} not found." });
+                return new BadRequestObjectResult(new
+                {
+                    message = $"Product with ID {id} not found."
+                });
             }
 
             _unitOfWork.Repository<Product>().Remove(product);
             await _unitOfWork.CompleteAsync();
 
-            try
-            {
-                // Publish the OrderCreated event message by using RabbitMQ
-                await _messagePublisher.PublishAsync(_mapper.Map<ProductDTO>(product), _settings.Queues.ProductDeleted);
-                _logger.LogInformation($"ProductDeleted event published successfully for the {_settings.Queues.ProductDeleted}.");
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error publishing ProductDeleted event to RabbitMQ");
-                throw;
-            }
+            await _cacheService.RemoveAsync($"{PRODUCT_KEY_PREFIX}{id}");
+            await _cacheService.RemoveAsync(ALL_PRODUCTS_KEY);
+
+            await SendAuditMessage(3, id, "Deleted");
 
             return new OkObjectResult(new { message = "Product deleted successfully." });
         }
+
+        private async Task SendAuditMessage(int operationType, int productId, string action)
+        {
+            var username = _httpContextAccessor.HttpContext?.User?.Identity?.Name;
+            var auditMessageDto = new AuditMessageDto
+            {
+                OprtnTyp = operationType,
+                UsrNm = username,
+                UsrNo = 1,
+                LogDsc = new List<string> { $"{action} By {username} {DateTime.UtcNow.ToString("ddd MMM dd HH:mm:ss 'UTC' yyyy")}" },
+                LogTyp = 1,
+                LogDate = DateTime.UtcNow,
+                ScreenName = "ProductsController",
+                ObjectName = "product",
+                ScreenPk = new Guid(0, 0, 0, BitConverter.GetBytes(productId))
+            };
+            await _rabbitMQHelper.AuditResAsync(auditMessageDto);
+        }
+
     }
 }

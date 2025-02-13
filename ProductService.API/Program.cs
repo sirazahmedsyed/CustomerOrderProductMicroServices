@@ -3,16 +3,27 @@ using ProductService.API.Infrastructure.DBContext;
 using ProductService.API.Infrastructure.Profiles;
 using ProductService.API.Infrastructure.Services;
 using ProductService.API.Infrastructure.UnitOfWork;
+using RabbitMQHelper.Infrastructure.Helpers;
 using SharedRepository.Authorization;
-using SharedRepository.RabbitMQMessageBroker.Extensions;
+using SharedRepository.RedisCache;
+//using SharedRepository.RabbitMQMessageBroker.Extensions;
 using SharedRepository.Repositories;
+using StackExchange.Redis;
 
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddSharedAuthorization(builder.Configuration);
 builder.Services.AddAuthenticationSharedServices(builder.Configuration);
 builder.Services.AddSwaggerGenSharedServices(builder.Configuration);
-builder.Services.AddSharedRabbitMQ();
+//builder.Services.AddSharedRabbitMQ();
+
+// Add Redis cache
+builder.Services.AddStackExchangeRedisCache(options =>
+{
+    options.Configuration = builder.Configuration.GetConnectionString("Redis");
+    options.InstanceName = "ProductServiceAPI";
+});
+builder.Services.AddHttpContextAccessor();
 
 builder.Services.AddControllers();
 builder.Services.AddAutoMapper(typeof(MappingProfile));
@@ -20,6 +31,8 @@ builder.Services.AddScoped(typeof(IGenericRepository<>), typeof(GenericRepositor
 builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
 builder.Services.AddScoped<IProductService, ProductServices>();
 
+// Register Redis cache service
+builder.Services.AddScoped<ICacheService, RedisCacheService>();
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("CorsPolicy",
@@ -30,6 +43,14 @@ builder.Services.AddCors(options =>
 
 builder.Services.AddDbContext<ProductDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
+
+// Register Redis connection
+builder.Services.AddSingleton<IConnectionMultiplexer>(sp =>
+    ConnectionMultiplexer.Connect(builder.Configuration.GetConnectionString("Redis")));
+
+// Add health checks
+builder.Services.AddHealthChecks()
+    .AddRedis(builder.Configuration.GetConnectionString("Redis"),name: "redis",tags: new[] { "ready" });
 
 builder.WebHost.ConfigureKestrel(serverOptions =>
 {

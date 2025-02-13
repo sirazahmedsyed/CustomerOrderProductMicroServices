@@ -7,6 +7,7 @@ using OrderService.API.Infrastructure.UnitOfWork;
 using RabbitMQHelper.Infrastructure.DTOs;
 using RabbitMQHelper.Infrastructure.Helpers;
 using SharedRepository.Repositories;
+using SharedRepository.RedisCache;
 
 namespace OrderService.API.Infrastructure.Services
 {
@@ -17,24 +18,54 @@ namespace OrderService.API.Infrastructure.Services
         private readonly IDataAccessHelper _dataAccessHelper;
         private readonly IHttpContextAccessor _httpContextAccessor;
         private readonly IRabbitMQHelper _rabbitMQHelper;
-        private readonly string dbconnection = "Host=dpg-cuk9b12j1k6c73d5dg20-a.oregon-postgres.render.com;Database=order_management_db_284m;Username=netconsumer;Password=6j9xg3A37zfiU5iRMLqdJmt6YPN46wLZ";
-        public OrderServices(IUnitOfWork unitOfWork, IDataAccessHelper dataAccessHelper, IMapper mapper, IHttpContextAccessor httpContextAccessor, IRabbitMQHelper rabbitMQHelper)
+        private readonly ICacheService _cacheService;
+        private readonly ILogger<OrderServices> _logger;
+
+        private const string ALL_ORDERS_KEY = "orders:all";
+        private const string ORDER_KEY_PREFIX = "order:";
+        private const string CUSTOMER_ORDERS_PREFIX = "customer:orders:";
+
+        public OrderServices(IUnitOfWork unitOfWork, IDataAccessHelper dataAccessHelper, IMapper mapper,
+            IHttpContextAccessor httpContextAccessor, IRabbitMQHelper rabbitMQHelper, ICacheService cacheService, ILogger<OrderServices> logger)
         {
             _unitOfWork = unitOfWork;
             _dataAccessHelper = dataAccessHelper;
             _mapper = mapper;
             _httpContextAccessor = httpContextAccessor;
             _rabbitMQHelper = rabbitMQHelper;
+            _cacheService = cacheService;
+            _logger = logger;
         }
+
         public async Task<IEnumerable<OrderDTO>> GetAllOrdersAsync()
         {
+            var cachedOrders = await _cacheService.GetAsync<IEnumerable<OrderDTO>>(ALL_ORDERS_KEY);
+            if (cachedOrders != null)
+            {
+                _logger.LogInformation("Retrieved orders from cache");
+                return cachedOrders;
+            }
+
             var orders = await _unitOfWork.Repository<Order>().GetAllAsync(
                 include: q => q.Include(o => o.OrderItems));
-            return _mapper.Map<IEnumerable<OrderDTO>>(orders);
+            var orderDtos = _mapper.Map<IEnumerable<OrderDTO>>(orders);
+
+            await _cacheService.SetAsync(ALL_ORDERS_KEY, orderDtos, TimeSpan.FromMinutes(5));
+
+            return orderDtos;
         }
 
         public async Task<IActionResult> GetOrderByIdAsync(Guid id)
         {
+            var cacheKey = $"{ORDER_KEY_PREFIX}{id}";
+
+            var cachedOrder = await _cacheService.GetAsync<OrderDTO>(cacheKey);
+            if (cachedOrder != null)
+            {
+                _logger.LogInformation($"Retrieved order {id} from cache");
+                return new OkObjectResult(new { order = cachedOrder });
+            }
+
             var order = await _unitOfWork.Repository<Order>().GetByIdAsync(id,
                 include: q => q.Include(o => o.OrderItems));
 
@@ -43,56 +74,151 @@ namespace OrderService.API.Infrastructure.Services
                 return new BadRequestObjectResult(new { message = $"Order with ID {id} not found." });
             }
 
-            return new OkObjectResult(new
-            {
-                order = _mapper.Map<OrderDTO>(order)
-            });
+            var orderDto = _mapper.Map<OrderDTO>(order);
+
+            await _cacheService.SetAsync(cacheKey, orderDto, TimeSpan.FromMinutes(30));
+
+            return new OkObjectResult(new { order = orderDto });
         }
 
         public async Task<IActionResult> AddOrderAsync(OrderDTO orderDto)
         {
-            if (!await _dataAccessHelper.ExistsAsync("customers", "customer_id", orderDto.CustomerId))
+            var result = await ProcessOrderCreation(orderDto);
+            if (result is BadRequestObjectResult)
             {
-                return new BadRequestObjectResult(new { message = $"Customer with ID {orderDto.CustomerId} does not exist." });
+                return result;
             }
 
-            if (!await _dataAccessHelper.GetInactiveCustomerFlag(orderDto.CustomerId))
+            await InvalidateOrderCaches(orderDto.CustomerId);
+
+            return result;
+        }
+
+        public async Task<IActionResult> UpdateOrderAsync(OrderDTO orderDto)
+        {
+            var result = await ProcessOrderUpdate(orderDto);
+            if (result is BadRequestObjectResult)
             {
-                return new BadRequestObjectResult(new { message = $"Customer with ID {orderDto.CustomerId} is not in active state." });
+                return result;
             }
 
-            var groupedOrderItems = orderDto.OrderItems
-                .GroupBy(item => item.ProductId)
-                .Select(g => new OrderItemDTO
-                {
-                    ProductId = g.Key,
-                    Quantity = g.Sum(item => item.Quantity)
-                })
-                .ToList();
+            await InvalidateOrderCaches(orderDto.CustomerId);
 
-            var productDetailsCache = new Dictionary<int, (decimal Price, decimal TaxPercentage)>();
-            var productStockCache = new Dictionary<int, int>();
-            foreach (var item in groupedOrderItems)
+            return result;
+        }
+
+        public async Task<IActionResult> DeleteOrderAsync(Guid id)
+        {
+            var order = await _unitOfWork.Repository<Order>().GetByIdAsync(id);
+            if (order == null)
             {
-                if (!productDetailsCache.ContainsKey(item.ProductId))
-                {
-                    var productDetails = await _dataAccessHelper.GetProductDetailsAsync(item.ProductId);
+                return new BadRequestObjectResult(new { message = $"Order with ID {id} not found." });
+            }
 
-                    if (productDetails.ProductId == default)
+            _unitOfWork.Repository<Order>().Remove(order);
+            await _unitOfWork.CompleteAsync();
+
+            await InvalidateOrderCaches(order.CustomerId);
+
+            await SendAuditMessage(3, id, "Deleted");
+
+            return new OkObjectResult(new { message = "Order deleted successfully." });
+        }
+
+        private async Task InvalidateOrderCaches(Guid customerId)
+        {
+            await _cacheService.RemoveAsync(ALL_ORDERS_KEY);
+            await _cacheService.RemoveByPatternAsync($"{CUSTOMER_ORDERS_PREFIX}{customerId}:*");
+
+            _logger.LogInformation($"Invalidated caches for customer {customerId}");
+        }
+
+        private async Task SendAuditMessage(int operationType, Guid orderId, string action)
+        {
+            var username = _httpContextAccessor.HttpContext?.User?.Identity?.Name;
+            var auditMessageDto = new AuditMessageDto
+            {
+                OprtnTyp = operationType,
+                UsrNm = username,
+                UsrNo = 1,
+                LogDsc = new List<string> { $"{action} By {username} {DateTime.UtcNow.ToString("ddd MMM dd HH:mm:ss 'UTC' yyyy")}" },
+                LogTyp = 1,
+                LogDate = DateTime.UtcNow,
+                ScreenName = "OrdersController",
+                ObjectName = "order",
+                ScreenPk = orderId
+            };
+            await _rabbitMQHelper.AuditResAsync(auditMessageDto);
+        }
+
+        private void CalculateOrderTotals(Order order, Dictionary<int, (decimal Price, decimal TaxPercentage)> productDetailsCache)
+        {
+            decimal totalAmount = 0;
+
+            foreach (var item in order.OrderItems)
+            {
+                var (_, taxPercentage) = productDetailsCache[item.ProductId];
+                decimal itemTotal = item.UnitPrice * item.Quantity;
+                decimal tax = itemTotal * (taxPercentage / 100);
+                totalAmount += itemTotal + tax;
+            }
+
+            order.TotalAmount = totalAmount;
+            order.DiscountedTotal = totalAmount * (1 - order.DiscountPercentage / 100);
+
+            _logger.LogInformation($"Calculated totals for order {order.OrderId}: Total={totalAmount}, Discounted={order.DiscountedTotal}");
+        }
+
+        private async Task<IActionResult> ProcessOrderCreation(OrderDTO orderDto)
+        {
+            try
+            {
+                if (!await _dataAccessHelper.ExistsAsync("customers", "customer_id", orderDto.CustomerId))
+                {
+                    return new BadRequestObjectResult(new { message = $"Customer with ID {orderDto.CustomerId} does not exist." });
+                }
+
+                if (!await _dataAccessHelper.GetInactiveCustomerFlag(orderDto.CustomerId))
+                {
+                    return new BadRequestObjectResult(new { message = $"Customer with ID {orderDto.CustomerId} is not in active state." });
+                }
+
+                var groupedOrderItems = orderDto.OrderItems
+                    .GroupBy(item => item.ProductId)
+                    .Select(g => new OrderItemDTO
                     {
-                        return new BadRequestObjectResult(new { message = $"Product with ID {item.ProductId} does not exist." });
+                        ProductId = g.Key,
+                        Quantity = g.Sum(item => item.Quantity)
+                    })
+                    .ToList();
+
+                var productDetailsCache = new Dictionary<int, (decimal Price, decimal TaxPercentage)>();
+                var productStockCache = new Dictionary<int, int>();
+
+                foreach (var item in groupedOrderItems)
+                {
+                    if (!productDetailsCache.ContainsKey(item.ProductId))
+                    {
+                        var productDetails = await _dataAccessHelper.GetProductDetailsAsync(item.ProductId);
+
+                        if (productDetails.ProductId == default)
+                        {
+                            return new BadRequestObjectResult(new { message = $"Product with ID {item.ProductId} does not exist." });
+                        }
+
+                        productDetailsCache[item.ProductId] = (Convert.ToDecimal(productDetails.Price), Convert.ToDecimal(productDetails.TaxPercentage));
+                        productStockCache[item.ProductId] = productDetails.Stock;
                     }
 
-                    productDetailsCache[item.ProductId] = (Convert.ToDecimal(productDetails.Price), Convert.ToDecimal(productDetails.TaxPercentage));
-                    productStockCache[item.ProductId] = productDetails.Stock;
+                    var availableStock = productStockCache[item.ProductId];
+                    if (availableStock < item.Quantity)
+                    {
+                        return new BadRequestObjectResult(new
+                        {
+                            message = $"Insufficient stock for product ID {item.ProductId}. Available: {availableStock}, Requested: {item.Quantity}"
+                        });
+                    }
                 }
-
-                var availableStock = productStockCache[item.ProductId];
-                if (availableStock < item.Quantity)
-                {
-                    return new BadRequestObjectResult(new { message = $"Insufficient stock for product ID {item.ProductId}. Available: {availableStock}, Requested: {item.Quantity}" });
-                }
-            }
 
                 var orderItems = groupedOrderItems.Select(item =>
                 {
@@ -116,178 +242,126 @@ namespace OrderService.API.Infrastructure.Services
 
                 CalculateOrderTotals(newOrder, productDetailsCache);
                 await _unitOfWork.Repository<Order>().AddAsync(newOrder);
-            
-            foreach (var orderitem in orderDto.OrderItems)
-            {
-                var stockUpdated = await _dataAccessHelper.UpdateProductStockByOrderedAsync(orderitem.ProductId, -orderitem.Quantity);
-                if (!stockUpdated)
+
+                foreach (var orderitem in orderDto.OrderItems)
                 {
-                    return new BadRequestObjectResult(new { message = $"Failed to update stock for product ID {orderitem.ProductId}." });
-                }
-            }
-
-            await _unitOfWork.CompleteAsync();
-            var username = _httpContextAccessor.HttpContext?.User?.Identity?.Name;
-            var auditMessageDto = new AuditMessageDto
-            {
-                OprtnTyp = 1,
-                UsrNm = username,
-                UsrNo = 1,
-                LogDsc = new List<string> { $"Created By {username} {DateTime.UtcNow.ToString("ddd MMM dd HH:mm:ss 'AST' yyyy")}" },
-                LogTyp = 1,
-                LogDate = DateTime.UtcNow,
-                ScreenName = "OrdersController",
-                ObjectName = "order",
-                ScreenPk = newOrder.OrderId
-            };
-            await _rabbitMQHelper.AuditResAsync(auditMessageDto);
-
-            return new OkObjectResult(_mapper.Map<OrderDTO>(newOrder));
-        }
-        public async Task<IActionResult> UpdateOrderAsync(OrderDTO orderDto)
-        {
-            if (!await _dataAccessHelper.ExistsAsync("orders", "order_id", orderDto.OrderId))
-            {
-                return new BadRequestObjectResult(new { message = $"Order with ID {orderDto.OrderId} does not exist." });
-            }
-
-
-            if (!await _dataAccessHelper.ExistsAsync("customers", "customer_id", orderDto.CustomerId))
-            {
-                return new BadRequestObjectResult(new { message = $"Customer with ID {orderDto.CustomerId} does not exist." });
-            }
-
-            var groupedOrderItems = orderDto.OrderItems
-                .GroupBy(item => item.ProductId)
-                .Select(g => new OrderItemDTO
-                {
-                    ProductId = g.Key,
-                    Quantity = g.Sum(item => item.Quantity)
-                })
-                .ToList();
-
-            var productDetailsCache = new Dictionary<int, (decimal Price, decimal TaxPercentage)>();
-            var productStockCache = new Dictionary<int, int>();
-
-            foreach (var item in groupedOrderItems)
-            {
-                if (!productDetailsCache.ContainsKey(item.ProductId))
-                {
-                    var productDetails = await _dataAccessHelper.GetProductDetailsAsync(item.ProductId);
-
-                    if (productDetails.ProductId == 0)
+                    var stockUpdated = await _dataAccessHelper.UpdateProductStockByOrderedAsync(orderitem.ProductId, -orderitem.Quantity);
+                    if (!stockUpdated)
                     {
-                        return new BadRequestObjectResult(new { message = $"Product with ID {item.ProductId} does not exist." });
+                        return new BadRequestObjectResult(new { message = $"Failed to update stock for product ID {orderitem.ProductId}." });
                     }
-                    productDetailsCache[item.ProductId] = (Convert.ToDecimal(productDetails.Price), Convert.ToDecimal(productDetails.TaxPercentage));
-                    productStockCache[item.ProductId] = productDetails.Stock;
                 }
+
+                await _unitOfWork.CompleteAsync();
+
+                await SendAuditMessage(1, newOrder.OrderId, "Created");
+
+                _logger.LogInformation($"Created new order with ID {newOrder.OrderId}");
+                return new OkObjectResult(_mapper.Map<OrderDTO>(newOrder));
             }
-
-            var existingOrder = await _unitOfWork.Repository<Order>().GetByIdAsync(orderDto.OrderId, o => o.Include(oi => oi.OrderItems));
-            existingOrder.OrderDate = DateTime.UtcNow;
-            existingOrder.DiscountPercentage = orderDto.DiscountPercentage;
-
-            foreach (var itemDto in groupedOrderItems)
+            catch (Exception ex)
             {
-                var (price, taxPercentage) = productDetailsCache[itemDto.ProductId];
-                var existingItem = existingOrder.OrderItems.FirstOrDefault(oi => oi.ProductId == itemDto.ProductId);
-                int totalQuantity = itemDto.Quantity;
-                if (existingItem != null)
+                _logger.LogError(ex, "Error processing order creation");
+                return new BadRequestObjectResult(new { message = "Error processing order creation" });
+            }
+        }
+
+        private async Task<IActionResult> ProcessOrderUpdate(OrderDTO orderDto)
+        {
+            try
+            {
+                if (!await _dataAccessHelper.ExistsAsync("orders", "order_id", orderDto.OrderId))
                 {
-                    totalQuantity += existingItem.Quantity;
+                    return new BadRequestObjectResult(new { message = $"Order with ID {orderDto.OrderId} does not exist." });
                 }
 
-                var availableStock = productStockCache[itemDto.ProductId];
-                if (totalQuantity > availableStock)
+                if (!await _dataAccessHelper.ExistsAsync("customers", "customer_id", orderDto.CustomerId))
                 {
-                    return new BadRequestObjectResult(new { message = $"Insufficient stock for product ID {itemDto.ProductId}. Available stock: {availableStock}." });
+                    return new BadRequestObjectResult(new { message = $"Customer with ID {orderDto.CustomerId} does not exist." });
                 }
 
-                if (existingItem != null)
-                {
-                    existingItem.Quantity = totalQuantity;
-                    existingItem.UnitPrice = price;
-                }
-                else
-                {
-                    existingOrder.OrderItems.Add(new OrderItem
+                var groupedOrderItems = orderDto.OrderItems
+                    .GroupBy(item => item.ProductId)
+                    .Select(g => new OrderItemDTO
                     {
-                        ProductId = itemDto.ProductId,
-                        Quantity = itemDto.Quantity,
-                        UnitPrice = price,
-                    });
+                        ProductId = g.Key,
+                        Quantity = g.Sum(item => item.Quantity)
+                    })
+                    .ToList();
+
+                var productDetailsCache = new Dictionary<int, (decimal Price, decimal TaxPercentage)>();
+                var productStockCache = new Dictionary<int, int>();
+
+                foreach (var item in groupedOrderItems)
+                {
+                    if (!productDetailsCache.ContainsKey(item.ProductId))
+                    {
+                        var productDetails = await _dataAccessHelper.GetProductDetailsAsync(item.ProductId);
+
+                        if (productDetails.ProductId == 0)
+                        {
+                            return new BadRequestObjectResult(new { message = $"Product with ID {item.ProductId} does not exist." });
+                        }
+                        productDetailsCache[item.ProductId] = (Convert.ToDecimal(productDetails.Price), Convert.ToDecimal(productDetails.TaxPercentage));
+                        productStockCache[item.ProductId] = productDetails.Stock;
+                    }
                 }
-                await _dataAccessHelper.UpdateProductStockAsync(itemDto.ProductId, -itemDto.Quantity);
+
+                var existingOrder = await _unitOfWork.Repository<Order>().GetByIdAsync(orderDto.OrderId, o => o.Include(oi => oi.OrderItems));
+                existingOrder.OrderDate = DateTime.UtcNow;
+                existingOrder.DiscountPercentage = orderDto.DiscountPercentage;
+
+                foreach (var itemDto in groupedOrderItems)
+                {
+                    var (price, taxPercentage) = productDetailsCache[itemDto.ProductId];
+                    var existingItem = existingOrder.OrderItems.FirstOrDefault(oi => oi.ProductId == itemDto.ProductId);
+                    int totalQuantity = itemDto.Quantity;
+                    if (existingItem != null)
+                    {
+                        totalQuantity += existingItem.Quantity;
+                    }
+
+                    var availableStock = productStockCache[itemDto.ProductId];
+                    if (totalQuantity > availableStock)
+                    {
+                        return new BadRequestObjectResult(new { message = $"Insufficient stock for product ID {itemDto.ProductId}. Available stock: {availableStock}." });
+                    }
+
+                    if (existingItem != null)
+                    {
+                        existingItem.Quantity = totalQuantity;
+                        existingItem.UnitPrice = price;
+                    }
+                    else
+                    {
+                        existingOrder.OrderItems.Add(new OrderItem
+                        {
+                            ProductId = itemDto.ProductId,
+                            Quantity = itemDto.Quantity,
+                            UnitPrice = price,
+                        });
+                    }
+                    await _dataAccessHelper.UpdateProductStockAsync(itemDto.ProductId, -itemDto.Quantity);
+                }
+
+                CalculateOrderTotals(existingOrder, productDetailsCache);
+                _unitOfWork.Repository<Order>().Update(existingOrder);
+                await _unitOfWork.CompleteAsync();
+
+                await SendAuditMessage(2, existingOrder.OrderId, "Updated");
+
+                _logger.LogInformation($"Updated order with ID {existingOrder.OrderId}");
+                return new OkObjectResult(new
+                {
+                    message = "Order updated successfully.",
+                    order = _mapper.Map<OrderDTO>(existingOrder)
+                });
             }
-
-            CalculateOrderTotals(existingOrder, productDetailsCache);
-            _unitOfWork.Repository<Order>().Update(existingOrder);
-            await _unitOfWork.CompleteAsync();
-
-            var username = _httpContextAccessor.HttpContext?.User?.Identity?.Name;
-            var auditMessageDto = new AuditMessageDto
+            catch (Exception ex)
             {
-                OprtnTyp = 2, 
-                UsrNm = username,
-                UsrNo = 1,
-                LogDsc = new List<string> { $"Updated By {username} {DateTime.UtcNow.ToString("ddd MMM dd HH:mm:ss 'UTC' yyyy")}" },
-                LogTyp = 1,
-                LogDate = DateTime.UtcNow,
-                ScreenName = "OrdersController",
-                ObjectName = "order",
-                ScreenPk = existingOrder.OrderId
-            };
-            await _rabbitMQHelper.AuditResAsync(auditMessageDto);
-
-            return new OkObjectResult(new
-            {
-                message = "Order updated successfully.",
-                order = _mapper.Map<OrderDTO>(existingOrder)
-            });
-        }
-
-        public async Task<IActionResult> DeleteOrderAsync(Guid id)
-        {
-            var order = await _unitOfWork.Repository<Order>().GetByIdAsync(id);
-            if (order == null)
-            {
-                return new BadRequestObjectResult(new { message = $"Order with ID {id} not found." });
-
+                _logger.LogError(ex, "Error processing order update");
+                return new BadRequestObjectResult(new { message = "Error processing order update" });
             }
-            _unitOfWork.Repository<Order>().Remove(order);
-            await _unitOfWork.CompleteAsync();
-
-            var username = _httpContextAccessor.HttpContext?.User?.Identity?.Name;
-            var auditMessageDto = new AuditMessageDto
-            {
-                OprtnTyp = 3, 
-                UsrNm = username, 
-                UsrNo = 1,
-                LogDsc = new List<string> { $"Deleted By {username} {DateTime.UtcNow.ToString("ddd MMM dd HH:mm:ss 'UTC' yyyy")}" },
-                LogTyp = 1,
-                LogDate = DateTime.UtcNow,
-                ScreenName = "OrdersController",
-                ObjectName = "order",
-                ScreenPk = id
-            };
-            await _rabbitMQHelper.AuditResAsync(auditMessageDto);
-
-            return new OkObjectResult(new { message = "Order deleted successfully." });
-        }
-        private void CalculateOrderTotals(Order order, Dictionary<int, (decimal Price, decimal TaxPercentage)> productDetailsCache)
-        {
-            decimal totalAmount = 0;
-            foreach (var item in order.OrderItems)
-            {
-                var (_, taxPercentage) = productDetailsCache[item.ProductId];
-                decimal itemTotal = item.UnitPrice * item.Quantity;
-                decimal tax = itemTotal * (taxPercentage / 100);
-                totalAmount += itemTotal + tax;
-            }
-
-            order.TotalAmount = totalAmount;
-            order.DiscountedTotal = totalAmount * (1 - order.DiscountPercentage / 100);
         }
     }
 }
