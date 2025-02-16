@@ -1,7 +1,6 @@
 ﻿using AutoMapper;
 using Dapper;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.Extensions.Options;
 using Npgsql;
 using ProductService.API.Infrastructure.DTOs;
 using ProductService.API.Infrastructure.Entities;
@@ -9,8 +8,6 @@ using ProductService.API.Infrastructure.UnitOfWork;
 using RabbitMQHelper.Infrastructure.DTOs;
 using RabbitMQHelper.Infrastructure.Helpers;
 using SharedRepository.RedisCache;
-//using SharedRepository.RabbitMQMessageBroker.Interfaces;
-//using SharedRepository.RabbitMQMessageBroker.Settings;
 
 namespace ProductService.API.Infrastructure.Services
 {
@@ -48,13 +45,11 @@ namespace ProductService.API.Infrastructure.Services
             }
 
             var products = await _unitOfWork.Repository<Product>().GetAllAsync();
-            var productDtos = _mapper.Map<IEnumerable<ProductDTO>>(products);
 
-            await _cacheService.SetAsync(ALL_PRODUCTS_KEY, productDtos, TimeSpan.FromMinutes(5));
+            await _cacheService.SetAsync(ALL_PRODUCTS_KEY, _mapper.Map<IEnumerable<ProductDTO>>(products), TimeSpan.FromMinutes(5));
 
-            return productDtos;
+            return _mapper.Map<IEnumerable<ProductDTO>>(products);
         }
-
 
         public async Task<ProductDTO> GetProductByIdAsync(int id)
         {
@@ -70,11 +65,9 @@ namespace ProductService.API.Infrastructure.Services
             var product = await _unitOfWork.Repository<Product>().GetByIdAsync(id);
             if (product == null) return null;
 
-            var productDto = _mapper.Map<ProductDTO>(product);
+            await _cacheService.SetAsync(cacheKey, _mapper.Map<ProductDTO>(product), TimeSpan.FromMinutes(30));
 
-            await _cacheService.SetAsync(cacheKey, productDto, TimeSpan.FromMinutes(30));
-
-            return productDto;
+            return _mapper.Map<ProductDTO>(product);
         }
 
         public async Task<IActionResult> AddProductAsync(ProductDTO productDto)
@@ -82,8 +75,7 @@ namespace ProductService.API.Infrastructure.Services
             await using var connection = new NpgsqlConnection(dbconnection);
             await connection.OpenAsync();
 
-            var existingProductByName = await connection.QuerySingleOrDefaultAsync<string>(
-                $"select name from products where name = '{productDto.Name}'");
+            var existingProductByName = await connection.QuerySingleOrDefaultAsync<string>($"select name from products where name = '{productDto.Name}'");
 
             if (existingProductByName != null)
             {
@@ -98,19 +90,14 @@ namespace ProductService.API.Infrastructure.Services
             await _unitOfWork.CompleteAsync();
 
             await _cacheService.RemoveAsync(ALL_PRODUCTS_KEY);
-
-            var newProductDto = _mapper.Map<ProductDTO>(product);
-            await _cacheService.SetAsync(
-                $"{PRODUCT_KEY_PREFIX}{product.ProductId}",
-                newProductDto
-            );
+            await _cacheService.SetAsync($"{PRODUCT_KEY_PREFIX}{product.ProductId}", _mapper.Map<ProductDTO>(product));
 
             await SendAuditMessage(1, product.ProductId, "Created");
 
             return new OkObjectResult(new
             {
                 message = "Product created successfully",
-                product = newProductDto
+                product = _mapper.Map<ProductDTO>(product)
             });
         }
 
@@ -133,7 +120,6 @@ namespace ProductService.API.Infrastructure.Services
             await _cacheService.RemoveAsync(ALL_PRODUCTS_KEY);
 
             await SendAuditMessage(2, productDto.ProductId, "Updated");
-
 
             return new OkObjectResult(new
             {
@@ -177,10 +163,9 @@ namespace ProductService.API.Infrastructure.Services
                 LogDate = DateTime.UtcNow,
                 ScreenName = "ProductsController",
                 ObjectName = "product",
-                ScreenPk = new Guid(0, 0, 0, BitConverter.GetBytes(productId))
+                ScreenPk = new Guid(BitConverter.GetBytes(productId).Concat(new byte[12]).ToArray())
             };
             await _rabbitMQHelper.AuditResAsync(auditMessageDto);
         }
-
     }
 }

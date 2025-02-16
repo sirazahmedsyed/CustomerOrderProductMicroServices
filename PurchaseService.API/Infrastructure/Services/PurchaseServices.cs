@@ -4,8 +4,9 @@ using Npgsql;
 using PurchaseService.API.Infrastructure.DTOs;
 using PurchaseService.API.Infrastructure.Entities;
 using PurchaseService.API.Infrastructure.UnitOfWork;
-using SharedRepository.RabbitMQMessageBroker.Interfaces;
-using SharedRepository.RabbitMQMessageBroker.Settings;
+using RabbitMQHelper.Infrastructure.DTOs;
+using RabbitMQHelper.Infrastructure.Helpers;
+using SharedRepository.RedisCache;
 using SharedRepository.Repositories;
 
 namespace PurchaseService.API.Infrastructure.Services
@@ -15,40 +16,70 @@ namespace PurchaseService.API.Infrastructure.Services
         private readonly IUnitOfWork _unitOfWork;
         private readonly IDataAccessHelper _dataAccessHelper;
         private readonly IMapper _mapper;
-        private readonly IMessagePublisher<PurchaseDTO> _messagePublisher;
         private readonly ILogger<PurchaseServices> _logger;
-        private readonly RabbitMQSettings _settings;
+        private readonly ICacheService _cacheService;
+        private readonly IRabbitMQHelper _rabbitMQHelper;
+        private readonly IHttpContextAccessor _httpContextAccessor;
+
+        private const string ALL_PURCHASES_KEY = "purchases:all";
+        private const string PURCHASE_KEY_PREFIX = "purchase:";
 
         private readonly string dbconnection = "Host=dpg-cuk9b12j1k6c73d5dg20-a.oregon-postgres.render.com;Database=order_management_db_284m;Username=netconsumer;Password=6j9xg3A37zfiU5iRMLqdJmt6YPN46wLZ";
-        public PurchaseServices(IUnitOfWork unitOfWork, IDataAccessHelper dataAccessHelper, IMapper mapper, IMessagePublisher<PurchaseDTO> messagePublisher, ILogger<PurchaseServices> logger)
+
+        public PurchaseServices(IUnitOfWork unitOfWork, IDataAccessHelper dataAccessHelper, IMapper mapper,
+            ILogger<PurchaseServices> logger, ICacheService cacheService, IRabbitMQHelper rabbitMQHelper,
+            IHttpContextAccessor httpContextAccessor)
         {
             _unitOfWork = unitOfWork;
             _dataAccessHelper = dataAccessHelper;
             _mapper = mapper;
-            _messagePublisher = messagePublisher;
-            _settings = RabbitMQConfigurations.DefaultSettings;
             _logger = logger;
+            _cacheService = cacheService;
+            _rabbitMQHelper = rabbitMQHelper;
+            _httpContextAccessor = httpContextAccessor;
         }
 
         public async Task<PurchaseDTO> GetPurchaseByIdAsync(int id)
         {
+            var cacheKey = $"{PURCHASE_KEY_PREFIX}{id}";
+
+            var cachedPurchase = await _cacheService.GetAsync<PurchaseDTO>(cacheKey);
+            if (cachedPurchase != null)
+            {
+                _logger.LogInformation($"Retrieved purchase {id} from cache");
+                return cachedPurchase;
+            }
+
             var purchase = await _unitOfWork.Repository<Purchase>().GetByIdAsync(id);
+            if (purchase == null) return null;
+
+            await _cacheService.SetAsync(cacheKey, _mapper.Map<PurchaseDTO>(purchase), TimeSpan.FromMinutes(30));
+
             return _mapper.Map<PurchaseDTO>(purchase);
         }
 
         public async Task<IEnumerable<PurchaseDTO>> GetAllPurchasesAsync()
         {
+            var cachedPurchases = await _cacheService.GetAsync<IEnumerable<PurchaseDTO>>(ALL_PURCHASES_KEY);
+            if (cachedPurchases != null)
+            {
+                _logger.LogInformation("Retrieved purchases from cache");
+                return cachedPurchases;
+            }
+
             var purchases = await _unitOfWork.Repository<Purchase>().GetAllAsync();
+
+            await _cacheService.SetAsync(ALL_PURCHASES_KEY, _mapper.Map<IEnumerable<PurchaseDTO>>(purchases), TimeSpan.FromMinutes(5));
+
             return _mapper.Map<IEnumerable<PurchaseDTO>>(purchases);
         }
 
         public async Task<IActionResult> AddPurchaseAsync(PurchaseDTO purchaseDto)
         {
             var connection = new NpgsqlConnection(dbconnection);
-            connection.Open();
+            await connection.OpenAsync();
 
             var purchaseExists = await _dataAccessHelper.ExistsAsync("purchases", "purchase_order_no", purchaseDto.PurchaseOrderNo);
-
             if (purchaseExists)
             {
                 return new BadRequestObjectResult(new { message = $"Duplicate purchase not allowed for this {purchaseDto.PurchaseOrderNo}." });
@@ -70,17 +101,10 @@ namespace PurchaseService.API.Infrastructure.Services
             await _unitOfWork.Repository<Purchase>().AddAsync(purchase);
             await _unitOfWork.CompleteAsync();
 
-            try
-            {
-                // Publish the OrderCreated event message by using RabbitMQ
-                await _messagePublisher.PublishAsync(_mapper.Map<PurchaseDTO>(purchase), _settings.Queues.PurchaseCreated);
-                _logger.LogInformation($"PurchaseCreated event published successfully for the {_settings.Queues.PurchaseCreated}.");
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error publishing PurchaseCreated event to RabbitMQ");
-                throw;
-            }
+            await _cacheService.RemoveAsync(ALL_PURCHASES_KEY);
+            await _cacheService.SetAsync($"{PURCHASE_KEY_PREFIX}{purchase.PurchaseId}", _mapper.Map<PurchaseDTO>(purchase));
+
+            await SendAuditMessage(1, purchase.PurchaseId, "Created");
 
             return new OkObjectResult(new { message = "Purchase created successfully", Purchase = _mapper.Map<PurchaseDTO>(purchase) });
         }
@@ -99,7 +123,6 @@ namespace PurchaseService.API.Infrastructure.Services
             }
 
             var existingPurchase = await _unitOfWork.Repository<Purchase>().GetByIdAsync(updatedPurchaseDto.PurchaseOrderNo);
-
             int quantityDifference = updatedPurchaseDto.Quantity - existingPurchase.Quantity;
 
             var stockUpdated = await _dataAccessHelper.UpdateProductStockAsync(updatedPurchaseDto.ProductId, quantityDifference);
@@ -112,17 +135,10 @@ namespace PurchaseService.API.Infrastructure.Services
             _unitOfWork.Repository<Purchase>().Update(existingPurchase);
             await _unitOfWork.CompleteAsync();
 
-            try
-            {
-                // Publish the purchaseupdated event message by using RabbitMQ
-                await _messagePublisher.PublishAsync(_mapper.Map<PurchaseDTO>(existingPurchase), _settings.Queues.PurchaseUpdated);
-                _logger.LogInformation($"PurchaseUpdated event published successfully for the {_settings.Queues.PurchaseUpdated}.");
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error publishing PurchaseUpdated event to RabbitMQ");
-                throw;
-            }
+            await _cacheService.RemoveAsync($"{PURCHASE_KEY_PREFIX}{updatedPurchaseDto.PurchaseId}");
+            await _cacheService.RemoveAsync(ALL_PURCHASES_KEY);
+
+            await SendAuditMessage(2, existingPurchase.PurchaseId, "Updated");
 
             return new OkObjectResult(new
             {
@@ -130,6 +146,7 @@ namespace PurchaseService.API.Infrastructure.Services
                 purchase = _mapper.Map<PurchaseDTO>(existingPurchase)
             });
         }
+
         public async Task<IActionResult> DeletePurchaseAsync(int purchaseId)
         {
             var existingPurchase = await _dataAccessHelper.ExistsAsync("purchases", "purchase_id", purchaseId);
@@ -149,19 +166,30 @@ namespace PurchaseService.API.Infrastructure.Services
             _unitOfWork.Repository<Purchase>().Remove(purchase);
             await _unitOfWork.CompleteAsync();
 
-            try
-            {
-                // Publish the PurchaseDeleted event message by using RabbitMQ
-                await _messagePublisher.PublishAsync(_mapper.Map<PurchaseDTO>(purchase), _settings.Queues.PurchaseDeleted);
-                _logger.LogInformation($"PurchaseDeleted event published successfully for the {_settings.Queues.PurchaseDeleted}.");
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error publishing PurchaseDeleted event to RabbitMQ");
-                throw;
-            }
+            await _cacheService.RemoveAsync($"{PURCHASE_KEY_PREFIX}{purchaseId}");
+            await _cacheService.RemoveAsync(ALL_PURCHASES_KEY);
+
+            await SendAuditMessage(3, purchaseId, "Deleted");
 
             return new OkObjectResult(new { message = "Purchase deleted successfully." });
+        }
+
+        private async Task SendAuditMessage(int operationType, int purchaseId, string action)
+        {
+            var username = _httpContextAccessor.HttpContext?.User?.Identity?.Name;
+            var auditMessageDto = new AuditMessageDto
+            {
+                OprtnTyp = operationType,
+                UsrNm = username,
+                UsrNo = 1,
+                LogDsc = new List<string> { $"{action} By {username} {DateTime.UtcNow:ddd MMM dd HH:mm:ss 'UTC' yyyy}" },
+                LogTyp = 1,
+                LogDate = DateTime.UtcNow,
+                ScreenName = "PurchasesController",
+                ObjectName = "purchase",
+                ScreenPk = new Guid(BitConverter.GetBytes(purchaseId).Concat(new byte[12]).ToArray())
+            };
+            await _rabbitMQHelper.AuditResAsync(auditMessageDto);
         }
     }
 }

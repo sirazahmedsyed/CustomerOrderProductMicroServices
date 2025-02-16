@@ -3,7 +3,7 @@ using ProductService.API.Infrastructure.DBContext;
 using ProductService.API.Infrastructure.Profiles;
 using ProductService.API.Infrastructure.Services;
 using ProductService.API.Infrastructure.UnitOfWork;
-using RabbitMQHelper.Infrastructure.Helpers;
+using RabbitMQHelper.Infrastructure.Extensions;
 using SharedRepository.Authorization;
 using SharedRepository.RedisCache;
 //using SharedRepository.RabbitMQMessageBroker.Extensions;
@@ -18,11 +18,11 @@ builder.Services.AddSwaggerGenSharedServices(builder.Configuration);
 //builder.Services.AddSharedRabbitMQ();
 
 // Add Redis cache
-builder.Services.AddStackExchangeRedisCache(options =>
-{
-    options.Configuration = builder.Configuration.GetConnectionString("Redis");
-    options.InstanceName = "ProductServiceAPI";
-});
+//builder.Services.AddStackExchangeRedisCache(options =>
+//{
+//    options.Configuration = builder.Configuration.GetConnectionString("Redis");
+//    options.InstanceName = "ProductServiceAPI";
+//});
 builder.Services.AddHttpContextAccessor();
 
 builder.Services.AddControllers();
@@ -51,6 +51,15 @@ builder.Services.AddSingleton<IConnectionMultiplexer>(sp =>
 // Add health checks
 builder.Services.AddHealthChecks()
     .AddRedis(builder.Configuration.GetConnectionString("Redis"),name: "redis",tags: new[] { "ready" });
+
+builder.Services.AddHttpContextAccessor();
+builder.Services.AddRabbitMQPublisher(builder.Configuration, config => { });
+
+builder.Services.AddStackExchangeRedisCache(options =>
+{
+    options.Configuration = builder.Configuration.GetConnectionString("Redis");
+    options.InstanceName = "ProductServiceAPI";
+});
 
 builder.WebHost.ConfigureKestrel(serverOptions =>
 {

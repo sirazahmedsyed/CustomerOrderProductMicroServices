@@ -1,6 +1,5 @@
 ﻿using MassTransit;
 using RabbitMQHelper.Infrastructure.DTOs;
-using RabbitMQHelper.Infrastructure.Entities;
 
 namespace RabbitMQHelper.Infrastructure.Helpers
 {
@@ -16,7 +15,7 @@ namespace RabbitMQHelper.Infrastructure.Helpers
         {
             try
             {
-                var auditMessage = new AuditMessage
+                var auditMessage = new AuditMessageDto
                 {
                     OprtnTyp = auditDto.OprtnTyp,
                     UsrNm = auditDto.UsrNm,
@@ -29,7 +28,11 @@ namespace RabbitMQHelper.Infrastructure.Helpers
                     ScreenPk = auditDto.ScreenPk
                 };
 
-                await _publishEndpoint.Publish(auditMessage);
+                await _publishEndpoint.Publish(auditMessage, context =>
+                {
+                    context.SetRoutingKey("audit.message");
+                });
+
                 return true;
             }
             catch (Exception ex)

@@ -46,13 +46,11 @@ namespace OrderService.API.Infrastructure.Services
                 return cachedOrders;
             }
 
-            var orders = await _unitOfWork.Repository<Order>().GetAllAsync(
-                include: q => q.Include(o => o.OrderItems));
-            var orderDtos = _mapper.Map<IEnumerable<OrderDTO>>(orders);
+            var orders = await _unitOfWork.Repository<Order>().GetAllAsync(include: q => q.Include(o => o.OrderItems));
 
-            await _cacheService.SetAsync(ALL_ORDERS_KEY, orderDtos, TimeSpan.FromMinutes(5));
+            await _cacheService.SetAsync(ALL_ORDERS_KEY, _mapper.Map<IEnumerable<OrderDTO>>(orders), TimeSpan.FromMinutes(5));
 
-            return orderDtos;
+            return _mapper.Map<IEnumerable<OrderDTO>>(orders);
         }
 
         public async Task<IActionResult> GetOrderByIdAsync(Guid id)
@@ -66,19 +64,16 @@ namespace OrderService.API.Infrastructure.Services
                 return new OkObjectResult(new { order = cachedOrder });
             }
 
-            var order = await _unitOfWork.Repository<Order>().GetByIdAsync(id,
-                include: q => q.Include(o => o.OrderItems));
+            var order = await _unitOfWork.Repository<Order>().GetByIdAsync(id, include: q => q.Include(o => o.OrderItems));
 
             if (order == null)
             {
                 return new BadRequestObjectResult(new { message = $"Order with ID {id} not found." });
             }
 
-            var orderDto = _mapper.Map<OrderDTO>(order);
+            await _cacheService.SetAsync(cacheKey, _mapper.Map<OrderDTO>(order), TimeSpan.FromMinutes(30));
 
-            await _cacheService.SetAsync(cacheKey, orderDto, TimeSpan.FromMinutes(30));
-
-            return new OkObjectResult(new { order = orderDto });
+            return new OkObjectResult(new { order = _mapper.Map<OrderDTO>(order) });
         }
 
         public async Task<IActionResult> AddOrderAsync(OrderDTO orderDto)

@@ -1,6 +1,4 @@
-﻿using ProductService.API.Infrastructure.Entities;
-using System;
-using System.ComponentModel.DataAnnotations;
+﻿using System.ComponentModel.DataAnnotations;
 namespace PurchaseService.API.Infrastructure.Entities
 {
     public class Purchase

@@ -7,6 +7,13 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Compile Remove="Infrastructure\RabbitMQMessageBroker\**" />
+    <Content Remove="Infrastructure\RabbitMQMessageBroker\**" />
+    <EmbeddedResource Remove="Infrastructure\RabbitMQMessageBroker\**" />
+    <None Remove="Infrastructure\RabbitMQMessageBroker\**" />
+  </ItemGroup>
+
+  <ItemGroup>
     <None Remove="docker-compose.yml" />
   </ItemGroup>
 
@@ -26,6 +33,7 @@
     </PackageReference>
     <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
     <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="8.0.4" />
+    <PackageReference Include="RabbitMQ.Client" Version="7.0.0" />
     <PackageReference Include="StackExchange.Redis" Version="2.8.24" />
     <PackageReference Include="Swashbuckle.AspNetCore" Version="6.4.0" />
   </ItemGroup>

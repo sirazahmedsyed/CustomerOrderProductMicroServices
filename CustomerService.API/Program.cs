@@ -4,8 +4,11 @@ using CustomerService.API.Infrastructure.Services;
 using CustomerService.API.Infrastructure.UnitOfWork;
 using GrpcClient;
 using Microsoft.EntityFrameworkCore;
+using RabbitMQHelper.Infrastructure.Extensions;
 using SharedRepository.Authorization;
+using SharedRepository.RedisCache;
 using SharedRepository.Repositories;
+using StackExchange.Redis;
 
 var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddSharedAuthorization(builder.Configuration);
@@ -21,6 +24,7 @@ builder.Services.AddSingleton<InactiveFlagClient>();
 builder.Services.AddSingleton<ProductDetailsClient>();
 builder.Services.AddSingleton<CustomerClient>();
 builder.Services.AddScoped<IDataAccessHelper, DataAccessHelper>();
+builder.Services.AddScoped<ICacheService, RedisCacheService>();
 
 builder.Services.AddCors(options =>
 {
@@ -32,6 +36,23 @@ builder.Services.AddCors(options =>
 
 builder.Services.AddDbContext<CustomerDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
+
+// Register Redis connection
+builder.Services.AddSingleton<IConnectionMultiplexer>(sp =>
+    ConnectionMultiplexer.Connect(builder.Configuration.GetConnectionString("Redis")));
+
+// Add health checks
+builder.Services.AddHealthChecks()
+    .AddRedis(builder.Configuration.GetConnectionString("Redis"), name: "redis", tags: new[] { "ready" });
+
+builder.Services.AddHttpContextAccessor();
+builder.Services.AddRabbitMQPublisher(builder.Configuration, config => { });
+
+builder.Services.AddStackExchangeRedisCache(options =>
+{
+    options.Configuration = builder.Configuration.GetConnectionString("Redis");
+    options.InstanceName = "OrderServiceAPI";
+});
 
 builder.WebHost.ConfigureKestrel(serverOptions =>
 {
