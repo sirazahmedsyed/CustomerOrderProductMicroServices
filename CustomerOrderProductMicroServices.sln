@@ -43,7 +43,9 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "RabbitMQConsumer", "RabbitM
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "AuditSrvice.API", "AuditsSrvice.API\AuditSrvice.API.csproj", "{E73C6A3B-8C63-47F2-9D00-647D5427417E}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RabbitMQHelper", "RabbitMQHelper\RabbitMQHelper.csproj", "{169C660B-5514-489F-9534-14A16455F048}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "RabbitMQHelper", "RabbitMQHelper\RabbitMQHelper.csproj", "{169C660B-5514-489F-9534-14A16455F048}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ProductService.Tests", "ProductService.Tests\ProductService.Tests.csproj", "{B5B15A73-2708-4D50-A15B-B902EF47E55E}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -127,6 +129,10 @@ Global
 		{169C660B-5514-489F-9534-14A16455F048}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{169C660B-5514-489F-9534-14A16455F048}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{169C660B-5514-489F-9534-14A16455F048}.Release|Any CPU.Build.0 = Release|Any CPU
+		{B5B15A73-2708-4D50-A15B-B902EF47E55E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{B5B15A73-2708-4D50-A15B-B902EF47E55E}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{B5B15A73-2708-4D50-A15B-B902EF47E55E}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{B5B15A73-2708-4D50-A15B-B902EF47E55E}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
