@@ -24,36 +24,42 @@ namespace ProductService.Tests.Controllers
         [Fact]
         public async Task CreateProduct_ValidProduct_ReturnsOkResult()
         {
+            // Arrange
             var productDto = new ProductDTO { ProductId = 1, Name = "New Product" };
             var okResult = new OkObjectResult(new { message = "Product created successfully", product = productDto });
 
             _mockProductService.Setup(x => x.AddProductAsync(productDto)).ReturnsAsync(okResult);
             _controller.ModelState.Clear();
 
+            // Act
             var result = await _controller.CreateProduct(productDto);
 
+            // Assert
             var okObjectResult = result.Should().BeOfType<OkObjectResult>().Subject;
             okObjectResult.Value.Should().BeEquivalentTo(new { message = "Product created successfully", product = productDto });
             _mockProductService.Verify(x => x.AddProductAsync(productDto), Times.Once());
             _mockLogger.Verify(x => x.Log(
-                It.IsAny<LogLevel>(),
-                It.IsAny<EventId>(),
-                It.IsAny<It.IsAnyType>(),
-                It.IsAny<Exception>(),
-                It.IsAny<Func<It.IsAnyType, Exception, string>>()), Times.Never()); 
+                     It.IsAny<LogLevel>(),
+                     It.IsAny<EventId>(),
+                     It.IsAny<It.IsAnyType>(),
+                     It.IsAny<Exception>(),
+                     It.IsAny<Func<It.IsAnyType, Exception, string>>()), Times.Never()); 
         }
 
         [Fact]
         public async Task CreateProduct_ServiceThrowsException_Returns500()
         {
+            // Arrange
             var productDto = new ProductDTO { ProductId = 1, Name = "New Product" };
             var exception = new Exception("Service error");
 
             _mockProductService.Setup(x => x.AddProductAsync(productDto)).ThrowsAsync(exception);
             _controller.ModelState.Clear();
 
+            // Act
             var result = await _controller.CreateProduct(productDto);
 
+            // Assert
             var statusCodeResult = result.Should().BeOfType<ObjectResult>().Subject;
             statusCodeResult.StatusCode.Should().Be(500);
             statusCodeResult.Value.Should().Be("Internal server error");
@@ -69,14 +75,17 @@ namespace ProductService.Tests.Controllers
         [Fact]
         public async Task CreateProduct_DuplicateProduct_ReturnsBadRequest()
         {
+            // Arrange
             var productDto = new ProductDTO { ProductId = 1, Name = "Duplicate Product" };
             var badRequestResult = new BadRequestObjectResult(new { message = "Duplicate product not allowed for this product Duplicate Product" });
 
             _mockProductService.Setup(x => x.AddProductAsync(productDto)).ReturnsAsync(badRequestResult);
             _controller.ModelState.Clear();
 
+            // Act
             var result = await _controller.CreateProduct(productDto);
 
+            // Assert
             var badRequestObjectResult = result.Should().BeOfType<BadRequestObjectResult>().Subject;
             badRequestObjectResult.Value.Should().BeEquivalentTo(new { message = "Duplicate product not allowed for this product Duplicate Product" });
             _mockProductService.Verify(x => x.AddProductAsync(productDto), Times.Once());
@@ -91,17 +100,17 @@ namespace ProductService.Tests.Controllers
         [Fact]
         public async Task UpdateProduct_ValidProduct_ReturnsOkResult()
         {
+            // Arrange
             var productDto = new ProductDTO { ProductId = 1, Name = "Updated Product" };
             var okResult = new OkObjectResult(new { message = "Product Updated successfully", product = productDto });
 
             _mockProductService.Setup(x => x.UpdateProductAsync(productDto)).ReturnsAsync(okResult);
             _controller.ModelState.Clear();
 
-            Console.WriteLine("Arrange Start: " + DateTime.Now);
-
-            Console.WriteLine("Act Start: " + DateTime.Now);
+            // Act
             var result = await _controller.UpdateProduct(productDto);
 
+            // Assert
             Console.WriteLine("Assert Start: " + DateTime.Now);
             var okObjectResult = result.Should().BeOfType<OkObjectResult>().Subject;
             okObjectResult.Value.Should().BeEquivalentTo(new { message = "Product Updated successfully", product = productDto });
@@ -113,14 +122,14 @@ namespace ProductService.Tests.Controllers
         [Fact]
         public async Task UpdateProduct_InvalidModelState_ReturnsBadRequest()
         {
+            // Arrange
             var productDto = new ProductDTO { ProductId = 1, Name = "" }; 
             _controller.ModelState.AddModelError("Name", "The Name field is required.");
 
-            Console.WriteLine("Arrange Start: " + DateTime.Now);
-
-            Console.WriteLine("Act Start: " + DateTime.Now);
+            // Act
             var result = await _controller.UpdateProduct(productDto);
 
+            // Assert
             Console.WriteLine("Assert Start: " + DateTime.Now);
             var badRequestResult = result.Should().BeOfType<BadRequestObjectResult>().Subject;
             var serializableError = badRequestResult.Value.Should().BeOfType<SerializableError>().Subject;
@@ -133,17 +142,17 @@ namespace ProductService.Tests.Controllers
         [Fact]
         public async Task UpdateProduct_ProductNotFound_ReturnsBadRequest()
         {
+            // Arrange
             var productDto = new ProductDTO { ProductId = 1, Name = "Updated Product" };
             var badRequestResult = new BadRequestObjectResult(new { message = $"Product is not available for this {productDto.ProductId} productId" });
 
             _mockProductService.Setup(x => x.UpdateProductAsync(productDto)).ReturnsAsync(badRequestResult);
             _controller.ModelState.Clear();
 
-            Console.WriteLine("Arrange Start: " + DateTime.Now);
-
-            Console.WriteLine("Act Start: " + DateTime.Now);
+            // Act
             var result = await _controller.UpdateProduct(productDto);
 
+            // Assert
             Console.WriteLine("Assert Start: " + DateTime.Now);
             var badRequestObjectResult = result.Should().BeOfType<BadRequestObjectResult>().Subject;
             badRequestObjectResult.Value.Should().BeEquivalentTo(new { message = $"Product is not available for this {productDto.ProductId} productId" });
@@ -155,17 +164,17 @@ namespace ProductService.Tests.Controllers
         [Fact]
         public async Task UpdateProduct_ServiceThrowsException_Returns500()
         {
+            // Arrange
             var productDto = new ProductDTO { ProductId = 1, Name = "Updated Product" };
             var exception = new Exception("Service error");
 
             _mockProductService.Setup(x => x.UpdateProductAsync(productDto)).ThrowsAsync(exception);
             _controller.ModelState.Clear();
 
-            Console.WriteLine("Arrange Start: " + DateTime.Now);
-
-            Console.WriteLine("Act Start: " + DateTime.Now);
+            // Act
             var result = await _controller.UpdateProduct(productDto);
 
+            // Assert
             Console.WriteLine("Assert Start: " + DateTime.Now);
             var statusCodeResult = result.Should().BeOfType<ObjectResult>().Subject;
             statusCodeResult.StatusCode.Should().Be(500);
@@ -178,6 +187,7 @@ namespace ProductService.Tests.Controllers
         [Fact]
         public async Task GetAllProducts_ReturnsOkResult_WithProducts()
         {
+            // Arrange
             var expectedProducts = new List<ProductDTO>
             {
                 new ProductDTO { ProductId = 1, Name = "Test Product 1", Price = 10.99m },
@@ -186,8 +196,10 @@ namespace ProductService.Tests.Controllers
 
             _mockProductService.Setup(service => service.GetAllProductsAsync()).ReturnsAsync(expectedProducts);
 
+            // Act
             var result = await _controller.GetAllProducts();
 
+            // Assert
             var okResult = Assert.IsType<OkObjectResult>(result);
             var returnedProducts = Assert.IsAssignableFrom<IEnumerable<ProductDTO>>(okResult.Value);
             returnedProducts.Should().BeEquivalentTo(expectedProducts);
@@ -196,15 +208,16 @@ namespace ProductService.Tests.Controllers
         [Fact]
         public async Task GetProductById_ReturnsOkResult_WhenProductExists()
         {
+            // Arrange
             var productId = 1;
             var expectedProduct = new ProductDTO { ProductId = productId, Name = "Test Product", Price = 10.99m };
 
-            _mockProductService
-                .Setup(service => service.GetProductByIdAsync(productId))
-                .ReturnsAsync(expectedProduct);
+            _mockProductService.Setup(service => service.GetProductByIdAsync(productId)).ReturnsAsync(expectedProduct);
 
+            // Act
             var result = await _controller.GetProductById(productId);
 
+            // Assert
             var okResult = Assert.IsType<OkObjectResult>(result);
             var returnedProduct = Assert.IsType<ProductDTO>(okResult.Value);
             returnedProduct.Should().BeEquivalentTo(expectedProduct);
@@ -213,27 +226,30 @@ namespace ProductService.Tests.Controllers
         [Fact]
         public async Task GetProductById_ReturnsNotFound_WhenProductDoesNotExist()
         {
+            // Arrange
             var productId = 999;
             _mockProductService.Setup(service => service.GetProductByIdAsync(productId)).ReturnsAsync((ProductDTO)null);
 
+            // Act
             var result = await _controller.GetProductById(productId);
 
+            // Assert
             Assert.IsType<NotFoundObjectResult>(result);
         }
 
         [Fact]
         public async Task DeleteProduct_ValidId_ReturnsOkResult()
         {
+            // Arrange
             int id = 1;
             var okResult = new OkObjectResult(new { message = "Product deleted successfully." });
 
             _mockProductService.Setup(x => x.DeleteProductAsync(id)).ReturnsAsync(okResult);
 
-            Console.WriteLine("Arrange Start: " + DateTime.Now);
-
-            Console.WriteLine("Act Start: " + DateTime.Now);
+            // Act
             var result = await _controller.DeleteProduct(id);
 
+            // Assert
             Console.WriteLine("Assert Start: " + DateTime.Now);
             var okObjectResult = result.Should().BeOfType<OkObjectResult>().Subject;
             okObjectResult.Value.Should().BeEquivalentTo(new { message = "Product deleted successfully." });
@@ -244,16 +260,16 @@ namespace ProductService.Tests.Controllers
         [Fact]
         public async Task DeleteProduct_ProductNotFound_ReturnsBadRequest()
         {
+            // Arrange
             int id = 1;
             var badRequestResult = new BadRequestObjectResult(new { message = $"Product with ID {id} not found." });
 
             _mockProductService.Setup(x => x.DeleteProductAsync(id)).ReturnsAsync(badRequestResult);
 
-            Console.WriteLine("Arrange Start: " + DateTime.Now);
-
-            Console.WriteLine("Act Start: " + DateTime.Now);
+            // Act
             var result = await _controller.DeleteProduct(id);
 
+            // Assert
             Console.WriteLine("Assert Start: " + DateTime.Now);
             var badRequestObjectResult = result.Should().BeOfType<BadRequestObjectResult>().Subject;
             badRequestObjectResult.Value.Should().BeEquivalentTo(new { message = $"Product with ID {id} not found." });
@@ -264,17 +280,17 @@ namespace ProductService.Tests.Controllers
         [Fact]
         public async Task DeleteProduct_ServiceThrowsException_Returns500()
         {
+            // Arrange
             int id = 1;
             var exception = new Exception("Service error");
 
+            
             _mockProductService.Setup(x => x.DeleteProductAsync(id)).ThrowsAsync(exception);
 
-            Console.WriteLine("Arrange Start: " + DateTime.Now);
-
-            Console.WriteLine("Act Start: " + DateTime.Now);
+            // Act
             var result = await _controller.DeleteProduct(id);
 
-            Console.WriteLine("Assert Start: " + DateTime.Now);
+            // Assert
             var statusCodeResult = result.Should().BeOfType<ObjectResult>().Subject;
             statusCodeResult.StatusCode.Should().Be(500);
             statusCodeResult.Value.Should().Be("Internal server error");
