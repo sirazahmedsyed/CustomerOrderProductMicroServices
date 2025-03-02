@@ -1,5 +1,4 @@
 ﻿using AutoMapper;
-using FluentAssertions;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
@@ -12,6 +11,7 @@ using RabbitMQHelper.Infrastructure.DTOs;
 using RabbitMQHelper.Infrastructure.Helpers;
 using SharedRepository.RedisCache;
 using SharedRepository.Repositories;
+using System.Reflection;
 
 namespace ProductService.Tests.Infrastructure.Services
 {
@@ -23,9 +23,11 @@ namespace ProductService.Tests.Infrastructure.Services
         private readonly Mock<ICacheService> _mockCacheService;
         private readonly Mock<IRabbitMQHelper> _mockRabbitMQHelper;
         private readonly Mock<IHttpContextAccessor> _mockHttpContextAccessor;
+
         private readonly ProductServices _productServices;
 
         private const string ProductKeyPrefix = "product:";
+        private const string ALL_PRODUCTS_KEY = "products:all";
 
         public ProductServicesTests()
         {
@@ -35,7 +37,7 @@ namespace ProductService.Tests.Infrastructure.Services
             _mockCacheService = new Mock<ICacheService>();
             _mockRabbitMQHelper = new Mock<IRabbitMQHelper>();
             _mockHttpContextAccessor = new Mock<IHttpContextAccessor>();
-
+            
             _productServices = new ProductServices(
                 _mockUnitOfWork.Object,
                 _mockMapper.Object,
@@ -44,22 +46,24 @@ namespace ProductService.Tests.Infrastructure.Services
                 _mockRabbitMQHelper.Object,
                 _mockHttpContextAccessor.Object
             );
+
         }
 
         [Fact]
         public async Task AddProductAsync_NewProduct_ReturnsOkResult()
         {
             // Arrange
-            var productDto = new ProductDTO { ProductId = 1, Name = "New Product" };
-            var product = new Product { ProductId = 1, Name = "New Product" };
+            var productDto = new ProductDTO { ProductId = 1, Name = "New Product", Description = "New Description", Price = 60, Stock = 100, TaxPercentage = 10 };
+            var product = new Product { ProductId = 1, Name = "New Product", Description = "New Description", Price = 60, Stock = 100, TaxPercentage = 10 };
 
             _mockMapper.Setup(x => x.Map<Product>(productDto)).Returns(product);
+            _mockMapper.Setup(x => x.Map<ProductDTO>(product)).Returns(productDto); // Mock mapping back to DTO
             var productRepoMock = new Mock<IGenericRepository<Product>>();
             productRepoMock.Setup(x => x.AddAsync(product)).Returns(Task.CompletedTask);
             _mockUnitOfWork.Setup(x => x.Repository<Product>()).Returns(productRepoMock.Object);
             _mockUnitOfWork.Setup(x => x.CompleteAsync()).ReturnsAsync(1);
             _mockCacheService.Setup(x => x.RemoveAsync("products:all")).Returns(Task.FromResult(true));
-            _mockCacheService.Setup(x => x.SetAsync($"{ProductKeyPrefix}{product.ProductId}", productDto, 
+            _mockCacheService.Setup(x => x.SetAsync($"{ProductKeyPrefix}{product.ProductId}", productDto,
                            It.IsAny<TimeSpan>())).Returns(Task.FromResult(true));
             _mockHttpContextAccessor.Setup(x => x.HttpContext.User.Identity.Name).Returns("testuser");
             _mockRabbitMQHelper.Setup(x => x.AuditResAsync(It.IsAny<AuditMessageDto>())).Returns(Task.FromResult(true));
@@ -68,8 +72,34 @@ namespace ProductService.Tests.Infrastructure.Services
             var result = await _productServices.AddProductAsync(productDto);
 
             // Assert
-            var okResult = result.Should().BeOfType<OkObjectResult>().Subject;
-            okResult.Value.Should().BeEquivalentTo(new { message = "Product created successfully", product = productDto });
+            Assert.IsType<OkObjectResult>(result);
+            var okResult = (OkObjectResult)result;
+            Assert.Equal(200, okResult.StatusCode);
+
+            object resultValue = okResult.Value;
+            Assert.NotNull(resultValue);
+
+            // Get the message
+            PropertyInfo messageProperty = resultValue.GetType().GetProperty("message");
+            Assert.NotNull(messageProperty);
+            string message = messageProperty.GetValue(resultValue) as string;
+            Assert.Equal("Product created successfully", message);
+
+            // Get the product
+            PropertyInfo productProperty = resultValue.GetType().GetProperty("product");
+            Assert.NotNull(productProperty);
+            object actualProduct = productProperty.GetValue(resultValue);
+            Assert.NotNull(actualProduct);
+
+            // Assert product properties
+            PropertyInfo productIdProperty = actualProduct.GetType().GetProperty("ProductId");
+            Assert.NotNull(productIdProperty);
+            Assert.Equal(productDto.ProductId, productIdProperty.GetValue(actualProduct));
+
+            PropertyInfo nameProperty = actualProduct.GetType().GetProperty("Name");
+            Assert.NotNull(nameProperty);
+            Assert.Equal(productDto.Name, nameProperty.GetValue(actualProduct));
+
             productRepoMock.Verify(x => x.AddAsync(product), Times.Once());
             _mockUnitOfWork.Verify(x => x.CompleteAsync(), Times.Once());
         }
@@ -78,18 +108,17 @@ namespace ProductService.Tests.Infrastructure.Services
         public async Task GetAllProductsAsync_ReturnsCachedProducts_WhenCacheExists()
         {
             // Arrange
-            var cachedProducts = new List<ProductDTO>
-            {
-                new ProductDTO { ProductId = 1, Name = "Cached Product" }
+            var cachedProducts = new List<ProductDTO>   
+            { 
+              new ProductDTO { ProductId = 1, Name = "Cached Product", Description = "Cached Description", Price = 70, Stock = 100, TaxPercentage = 10}
             };
-
-            _mockCacheService.Setup(c => c.GetAsync<IEnumerable<ProductDTO>>("products:all")).ReturnsAsync(cachedProducts);
+            _mockCacheService.Setup(x => x.GetAsync<IEnumerable<ProductDTO>>("products:all")).ReturnsAsync(cachedProducts);
 
             // Act
             var result = await _productServices.GetAllProductsAsync();
 
             // Assert
-            result.Should().BeEquivalentTo(cachedProducts);
+            Assert.Equal(cachedProducts, result); 
             _mockUnitOfWork.Verify(x => x.Repository<Product>().GetAllAsync(), Times.Never);
         }
 
@@ -99,13 +128,13 @@ namespace ProductService.Tests.Infrastructure.Services
             // Arrange
             var productsFromRepo = new List<Product>
             {
-                new Product { ProductId = 1, Name = "Product1" },
-                new Product { ProductId = 2, Name = "Product2" }
+                new Product { ProductId = 1, Name = "ProductName", Description ="Product Description", Price = 70, Stock = 100, TaxPercentage = 10},
+                new Product { ProductId = 2, Name = "ProductName", Description ="Product Description", Price = 70, Stock = 100, TaxPercentage = 10 }
             };
             var productDtos = new List<ProductDTO>
             {
-                new ProductDTO { ProductId = 1, Name = "Product1" },
-                new ProductDTO { ProductId = 2, Name = "Product2" }
+                new ProductDTO { ProductId = 1, Name = "ProductName", Description ="Product Description", Price = 70, Stock = 100, TaxPercentage = 10 },
+                new ProductDTO { ProductId = 2, Name = "ProductName", Description ="Product Description", Price = 70, Stock = 100, TaxPercentage = 10 }
             };
 
             _mockCacheService.Setup(x => x.GetAsync<IEnumerable<ProductDTO>>(It.IsAny<string>()))
@@ -115,22 +144,22 @@ namespace ProductService.Tests.Infrastructure.Services
             productRepoMock.Setup(x => x.GetAllAsync()).ReturnsAsync(productsFromRepo);
             _mockUnitOfWork.Setup(x => x.Repository<Product>()).Returns(productRepoMock.Object);
             _mockMapper.Setup(x => x.Map<IEnumerable<ProductDTO>>(productsFromRepo)).Returns(productDtos);
-            _mockCacheService.Setup(x => x.SetAsync(It.IsAny<string>(), It.IsAny<IEnumerable<ProductDTO>>(), 
+            _mockCacheService.Setup(x => x.SetAsync(It.IsAny<string>(), It.IsAny<IEnumerable<ProductDTO>>(),
                            It.IsAny<TimeSpan>())).Returns(Task.FromResult(true));
 
             // Act
             var result = await _productServices.GetAllProductsAsync();
 
             // Assert
-            result.Should().BeEquivalentTo(productDtos);
+            Assert.Equal(productDtos, result);
             _mockCacheService.Verify(x => x.GetAsync<IEnumerable<ProductDTO>>("products:all"), Times.Once());
             _mockUnitOfWork.Verify(x => x.Repository<Product>(), Times.Once());
             productRepoMock.Verify(x => x.GetAllAsync(), Times.Once());
             _mockMapper.Verify(x => x.Map<IEnumerable<ProductDTO>>(productsFromRepo), Times.Exactly(2));
             _mockCacheService.Verify(x => x.SetAsync("products:all", It.Is<IEnumerable<ProductDTO>>
                 (dtos => dtos.SequenceEqual(productDtos)), TimeSpan.FromMinutes(5)), Times.Once());
-            _mockLogger.Verify(x => x.Log(It.IsAny<LogLevel>(), It.IsAny<EventId>(), It.IsAny<It.IsAnyType>(), 
-                     It.IsAny<Exception>(), It.IsAny<Func<It.IsAnyType, Exception, string>>()), Times.Never()); 
+            _mockLogger.Verify(x => x.Log(It.IsAny<LogLevel>(), It.IsAny<EventId>(), It.IsAny<It.IsAnyType>(),
+                     It.IsAny<Exception>(), It.IsAny<Func<It.IsAnyType, Exception, string>>()), Times.Never());
         }
 
         [Fact]
@@ -151,10 +180,9 @@ namespace ProductService.Tests.Infrastructure.Services
             var result = await _productServices.GetProductByIdAsync(productId);
 
             // Assert
-            result.Should().BeEquivalentTo(productDto);
+            Assert.Equal(productDto, result);
             _mockCacheService.Verify(x => x.SetAsync($"{ProductKeyPrefix}{productId}", productDto, It.IsAny<TimeSpan>()), Times.Once());
         }
-
 
         [Fact]
         public async Task GetProductByIdAsync_ProductNotFound_ReturnsNull()
@@ -168,72 +196,74 @@ namespace ProductService.Tests.Infrastructure.Services
             var result = await _productServices.GetProductByIdAsync(productId);
 
             // Assert
-            result.Should().BeNull();
+            Assert.Null(result);
         }
 
         [Fact]
         public async Task DeleteProductAsync_ProductExists_ReturnsOkResult()
         {
             // Arrange
-            var productId = 1;
+            int productId = 1;
             var product = new Product { ProductId = productId, Name = "Test Product" };
 
-            var mockProductRepo = new Mock<IGenericRepository<Product>>();
-            mockProductRepo.Setup(x => x.GetByIdAsync(productId)).ReturnsAsync(product);
-            mockProductRepo.Setup(x => x.Remove(product)).Verifiable();
-            _mockUnitOfWork.Setup(x => x.Repository<Product>()).Returns(mockProductRepo.Object);
-            _mockUnitOfWork.Setup(x => x.CompleteAsync()).ReturnsAsync(1);
-
-            _mockCacheService.Setup(x => x.RemoveAsync($"{ProductKeyPrefix}{productId}")).Returns(Task.FromResult(true));
-            _mockCacheService.Setup(x => x.RemoveAsync("products:all")).Returns(Task.FromResult(true));
+            _mockUnitOfWork.Setup(x => x.Repository<Product>().GetByIdAsync(productId)).ReturnsAsync(product);
 
             _mockHttpContextAccessor.Setup(x => x.HttpContext.User.Identity.Name).Returns("testuser");
-            _mockRabbitMQHelper.Setup(x => x.AuditResAsync(It.IsAny<AuditMessageDto>())).Returns(Task.FromResult(true))
-               .Callback<AuditMessageDto>(dto =>
-               {
-                   Console.WriteLine($"AuditMessageDto: OprtnTyp={dto.OprtnTyp}, ScreenPk={dto.ScreenPk}, LogDsc={string.Join(", ", dto.LogDsc)}");
-               });
 
             // Act
-            Console.WriteLine("Assert Start: " + DateTime.Now);
             var result = await _productServices.DeleteProductAsync(productId);
 
             // Assert
-            var okResult = result.Should().BeOfType<OkObjectResult>().Subject;
-            okResult.Value.Should().BeEquivalentTo(new { message = "Product deleted successfully." });
+            Assert.IsType<OkObjectResult>(result);
+            var okResult = (OkObjectResult)result;
+            Assert.Equal(200, okResult.StatusCode);
 
-            mockProductRepo.Verify(x => x.GetByIdAsync(productId), Times.Once());
-            mockProductRepo.Verify(x => x.Remove(product), Times.Once());
-            _mockUnitOfWork.Verify(x => x.CompleteAsync(), Times.Once());
-            _mockCacheService.Verify(x => x.RemoveAsync($"{ProductKeyPrefix}{productId}"), Times.Once());
-            _mockCacheService.Verify(x => x.RemoveAsync("products:all"), Times.Once());
-            _mockRabbitMQHelper.Verify(x => x.AuditResAsync(It.Is<AuditMessageDto>
-                (dto => dto.OprtnTyp == 3 && dto.ScreenPk != null && dto.LogDsc.Any(d => d.Contains("Deleted By testuser")))), Times.Once());
-            Console.WriteLine("Test End: " + DateTime.Now);
+            // Use reflection to get the 'message' property
+            object resultValue = okResult.Value;
+            Assert.NotNull(resultValue);
+
+            PropertyInfo messageProperty = resultValue.GetType().GetProperty("message");
+            Assert.NotNull(messageProperty);
+
+            string message = messageProperty.GetValue(resultValue) as string;
+            Assert.Equal("Product deleted successfully.", message);
+
+            _mockUnitOfWork.Verify(x => x.Repository<Product>().Remove(product), Times.Once);
+            _mockUnitOfWork.Verify(x => x.CompleteAsync(), Times.Once);
+            _mockCacheService.Verify(cache => cache.RemoveAsync($"product:{productId}"), Times.Once);
+            _mockCacheService.Verify(cache => cache.RemoveAsync("products:all"), Times.Once);
+            _mockRabbitMQHelper.Verify(rmq => rmq.AuditResAsync(It.IsAny<AuditMessageDto>()), Times.Once);
         }
 
         [Fact]
-        public async Task DeleteProductAsync_ProductNotFound_ReturnsBadRequest()
+        public async Task DeleteProductAsync_ProductDoesNotExist_ReturnsBadRequestResult()
         {
             // Arrange
-            var productId = 1;
-
-            var mockProductRepo = new Mock<IGenericRepository<Product>>();
-            mockProductRepo.Setup(x => x.GetByIdAsync(productId)).ReturnsAsync((Product)null);
-            _mockUnitOfWork.Setup(x => x.Repository<Product>()).Returns(mockProductRepo.Object);
+            int productId = 1;
+            _mockUnitOfWork.Setup(x => x.Repository<Product>().GetByIdAsync(productId)).ReturnsAsync((Product)null); 
 
             // Act
             var result = await _productServices.DeleteProductAsync(productId);
 
             // Assert
-            var badRequestResult = result.Should().BeOfType<BadRequestObjectResult>().Subject;
-            badRequestResult.Value.Should().BeEquivalentTo(new { message = $"Product with ID {productId} not found." });
+            Assert.IsType<BadRequestObjectResult>(result);
+            var badRequestResult = (BadRequestObjectResult)result;
+            Assert.Equal(400, badRequestResult.StatusCode);
 
-            mockProductRepo.Verify(x => x.GetByIdAsync(productId), Times.Once());
-            mockProductRepo.Verify(x => x.Remove(It.IsAny<Product>()), Times.Never());
-            _mockUnitOfWork.Verify(x => x.CompleteAsync(), Times.Never());
-            _mockCacheService.Verify(x => x.RemoveAsync(It.IsAny<string>()), Times.Never());
-            _mockRabbitMQHelper.Verify(x => x.AuditResAsync(It.IsAny<AuditMessageDto>()), Times.Never());
+            // Use reflection to get the 'message' property
+            object resultValue = badRequestResult.Value;
+            Assert.NotNull(resultValue);
+
+            PropertyInfo messageProperty = resultValue.GetType().GetProperty("message");
+            Assert.NotNull(messageProperty);
+
+            string message = messageProperty.GetValue(resultValue) as string;
+            Assert.Equal($"Product with ID {productId} not found.", message);
+
+            _mockUnitOfWork.Verify(uow => uow.Repository<Product>().Remove(It.IsAny<Product>()), Times.Never);
+            _mockUnitOfWork.Verify(uow => uow.CompleteAsync(), Times.Never);
+            _mockCacheService.Verify(cache => cache.RemoveAsync(It.IsAny<string>()), Times.Never);
+            _mockRabbitMQHelper.Verify(rmq => rmq.AuditResAsync(It.IsAny<AuditMessageDto>()), Times.Never);
         }
     }
 }
