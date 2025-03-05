@@ -1,13 +1,13 @@
 ﻿using AutoMapper;
-using Dapper;
 using Microsoft.AspNetCore.Mvc;
-using Npgsql;
+using Microsoft.EntityFrameworkCore;
 using ProductService.API.Infrastructure.DTOs;
 using ProductService.API.Infrastructure.Entities;
 using ProductService.API.Infrastructure.UnitOfWork;
 using RabbitMQHelper.Infrastructure.DTOs;
 using RabbitMQHelper.Infrastructure.Helpers;
 using SharedRepository.RedisCache;
+using SharedRepository.Repositories;
 
 namespace ProductService.API.Infrastructure.Services
 {
@@ -19,13 +19,13 @@ namespace ProductService.API.Infrastructure.Services
         private readonly ICacheService _cacheService;
         private readonly IRabbitMQHelper _rabbitMQHelper;
         private readonly IHttpContextAccessor _httpContextAccessor;
-        private readonly string dbconnection = "Host=dpg-cuk9b12j1k6c73d5dg20-a.oregon-postgres.render.com;Database=order_management_db_284m;Username=netconsumer;Password=6j9xg3A37zfiU5iRMLqdJmt6YPN46wLZ";
-
+        private readonly IDataAccessHelper _dataAccessHelper;
+       
         private const string ALL_PRODUCTS_KEY = "products:all";
         private const string PRODUCT_KEY_PREFIX = "product:";
 
         public ProductServices(IUnitOfWork unitOfWork, IMapper mapper, ILogger<ProductServices> logger, ICacheService cacheService, IRabbitMQHelper rabbitMQHelper,
-            IHttpContextAccessor httpContextAccessor)
+            IHttpContextAccessor httpContextAccessor, IDataAccessHelper dataAccessHelper)
         {
             _unitOfWork = unitOfWork;
             _mapper = mapper;
@@ -33,6 +33,7 @@ namespace ProductService.API.Infrastructure.Services
             _cacheService = cacheService;
             _rabbitMQHelper = rabbitMQHelper;
             _httpContextAccessor = httpContextAccessor;
+            _dataAccessHelper = dataAccessHelper;
         }
 
         public async Task<IEnumerable<ProductDTO>> GetAllProductsAsync()
@@ -72,33 +73,30 @@ namespace ProductService.API.Infrastructure.Services
 
         public async Task<IActionResult> AddProductAsync(ProductDTO productDto)
         {
-            await using var connection = new NpgsqlConnection(dbconnection);
-            await connection.OpenAsync();
-
-            var existingProductByName = await connection.QuerySingleOrDefaultAsync<string>($"select name from products where name = '{productDto.Name}'");
-
-            if (existingProductByName != null)
-            {
-                return new BadRequestObjectResult(new
+            var productExists = await _dataAccessHelper.ExistsAsync("products", "name", productDto.Name);
+                if (productExists)
                 {
-                    message = $"Duplicate product not allowed for this product {productDto.Name}"
+                    return new BadRequestObjectResult(new
+                    {
+                        message = $"Duplicate product not allowed for this product {productDto.Name}"
+                    });
+                }
+
+                var product = _mapper.Map<Product>(productDto);
+                await _unitOfWork.Repository<Product>().AddAsync(product);
+                await _unitOfWork.CompleteAsync();
+
+                await _cacheService.RemoveAsync(ALL_PRODUCTS_KEY);
+                await _cacheService.SetAsync($"{PRODUCT_KEY_PREFIX}{product.ProductId}", _mapper.Map<ProductDTO>(product));
+
+                await SendAuditMessage(1, product.ProductId, "Created");
+
+                return new OkObjectResult(new
+                {
+                    message = "Product created successfully",
+                    product = _mapper.Map<ProductDTO>(product)
                 });
-            }
-
-            var product = _mapper.Map<Product>(productDto);
-            await _unitOfWork.Repository<Product>().AddAsync(product);
-            await _unitOfWork.CompleteAsync();
-
-            await _cacheService.RemoveAsync(ALL_PRODUCTS_KEY);
-            await _cacheService.SetAsync($"{PRODUCT_KEY_PREFIX}{product.ProductId}", _mapper.Map<ProductDTO>(product));
-
-            await SendAuditMessage(1, product.ProductId, "Created");
-
-            return new OkObjectResult(new
-            {
-                message = "Product created successfully",
-                product = _mapper.Map<ProductDTO>(product)
-            });
+            
         }
 
         public async Task<IActionResult> UpdateProductAsync(ProductDTO productDto)
