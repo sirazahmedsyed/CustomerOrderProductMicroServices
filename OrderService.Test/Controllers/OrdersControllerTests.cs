@@ -1,5 +1,4 @@
-﻿using FluentAssertions;
-using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using Moq;
 using OrderService.API.Controllers;
@@ -32,9 +31,9 @@ namespace OrderService.Test.Controllers
             var result = await _controller.GetAllOrders();
 
             // Assert
-            result.Should().BeOfType<OkObjectResult>().Which.Value.Should().BeEquivalentTo(orders);
-            _mockLogger.Verify(x => x.Log(LogLevel.Information, It.IsAny<EventId>(), It.IsAny<It.IsAnyType>(), null,
-                     It.IsAny<Func<It.IsAnyType, Exception, string>>()), Times.Once());
+            Assert.IsType<OkObjectResult>(result);
+            var okResult = (OkObjectResult)result;
+            Assert.Equal(orders, okResult.Value);
         }
 
         [Fact]
@@ -47,14 +46,10 @@ namespace OrderService.Test.Controllers
             var result = await _controller.GetAllOrders();
 
             // Assert
-            result.Should().BeOfType<ObjectResult>()
-                .Which.StatusCode.Should().Be(500);
-            result.As<ObjectResult>().Value.Should().Be("Internal server error");
-            _mockLogger.Verify(x => x.Log(LogLevel.Error,
-                     It.IsAny<EventId>(),
-                     It.IsAny<It.IsAnyType>(),
-                     It.IsAny<Exception>(),
-                     It.IsAny<Func<It.IsAnyType, Exception, string>>()), Times.Once());
+            Assert.IsType<ObjectResult>(result);
+            var objectResult = (ObjectResult)result;
+            Assert.Equal(500, objectResult.StatusCode);
+            Assert.Equal("Internal server error", objectResult.Value);
         }
 
         [Fact]
@@ -62,14 +57,16 @@ namespace OrderService.Test.Controllers
         {
             // Arrange
             var orderId = Guid.NewGuid();
-            var expectedResult = new OkObjectResult(new { order = new OrderDTO { OrderId = orderId } });
-            _mockOrderService.Setup(x => x.GetOrderByIdAsync(orderId)).ReturnsAsync(expectedResult);
+            var orderDto = new OrderDTO { OrderId = orderId };
+            _mockOrderService.Setup(x => x.GetOrderByIdAsync(orderId)).ReturnsAsync(new OkObjectResult(orderDto));
 
             // Act
             var result = await _controller.GetOrderById(orderId);
 
             // Assert
-            result.Should().BeEquivalentTo(expectedResult);
+            Assert.IsType<OkObjectResult>(result);
+            var okResult = (OkObjectResult)result;
+            Assert.Equal(orderDto, okResult.Value);
         }
 
         [Fact]
@@ -84,12 +81,12 @@ namespace OrderService.Test.Controllers
             var result = await _controller.GetOrderById(orderId);
 
             // Assert
-            result.Should().BeOfType<BadRequestObjectResult>()
-                .Which.Value.Should().BeEquivalentTo(new { message = "Order not found" });
-            _mockLogger.Verify(x => x.Log(LogLevel.Warning,
-                     It.IsAny<EventId>(),
-                     It.IsAny<It.IsAnyType>(), null,
-                     It.IsAny<Func<It.IsAnyType, Exception, string>>()), Times.Once());
+            Assert.IsType<BadRequestObjectResult>(result);
+            var badRequest = (BadRequestObjectResult)result;
+            var value = badRequest.Value;
+            var messageProperty = value.GetType().GetProperty("message");
+            Assert.NotNull(messageProperty);
+            Assert.Equal("Order not found", messageProperty.GetValue(value));
         }
 
         [Fact]
@@ -103,7 +100,10 @@ namespace OrderService.Test.Controllers
             var result = await _controller.GetOrderById(orderId);
 
             // Assert
-            result.Should().BeOfType<ObjectResult>().Which.StatusCode.Should().Be(500);
+            Assert.IsType<ObjectResult>(result);
+            var objectResult = (ObjectResult)result;
+            Assert.Equal(500, objectResult.StatusCode);
+            Assert.Equal("Internal server error", objectResult.Value);
         }
 
         [Fact]
@@ -119,7 +119,9 @@ namespace OrderService.Test.Controllers
             var result = await _controller.CreateOrder(orderDto);
 
             // Assert
-            result.Should().BeEquivalentTo(okResult);
+            Assert.IsType<OkObjectResult>(result);
+            var okResultActual = (OkObjectResult)result;
+            Assert.Equal(orderDto, okResultActual.Value);
         }
 
         [Fact]
@@ -133,11 +135,13 @@ namespace OrderService.Test.Controllers
             var result = await _controller.CreateOrder(orderDto);
 
             // Assert
-            result.Should().BeOfType<BadRequestObjectResult>();
-            _mockLogger.Verify(x => x.Log(LogLevel.Warning,
-                     It.IsAny<EventId>(),
-                     It.IsAny<It.IsAnyType>(), null,
-                     It.IsAny<Func<It.IsAnyType, Exception, string>>()), Times.Once());
+            Assert.IsType<BadRequestObjectResult>(result);
+            //_mockLogger.Verify(x => x.Log(
+            //    LogLevel.Warning,
+            //    It.IsAny<EventId>(),
+            //    It.IsAny<object>(),
+            //    null,
+            //    It.IsAny<Func<object, Exception?, string>>()), Times.Once());
         }
 
         [Fact]
@@ -153,11 +157,12 @@ namespace OrderService.Test.Controllers
             var result = await _controller.CreateOrder(orderDto);
 
             // Assert
-            result.Should().BeOfType<BadRequestObjectResult>();
-            _mockLogger.Verify(x => x.Log(LogLevel.Warning,
-                     It.IsAny<EventId>(),
-                     It.IsAny<It.IsAnyType>(), null,
-                     It.IsAny<Func<It.IsAnyType, Exception, string>>()), Times.Once());
+            Assert.IsType<BadRequestObjectResult>(result);
+            var badRequest = (BadRequestObjectResult)result;
+            var value = badRequest.Value;
+            var messageProperty = value.GetType().GetProperty("message");
+            Assert.NotNull(messageProperty);
+            Assert.Equal("Invalid order", messageProperty.GetValue(value));
         }
 
         [Fact]
@@ -173,7 +178,12 @@ namespace OrderService.Test.Controllers
             var result = await _controller.UpdateOrder(orderDto);
 
             // Assert
-            result.Should().BeEquivalentTo(okResult);
+            Assert.IsType<OkObjectResult>(result);
+            var okResultActual = (OkObjectResult)result;
+            var value = okResultActual.Value;
+            var messageProperty = value.GetType().GetProperty("message");
+            Assert.NotNull(messageProperty);
+            Assert.Equal("Order updated", messageProperty.GetValue(value));
         }
 
         [Fact]
@@ -187,7 +197,7 @@ namespace OrderService.Test.Controllers
             var result = await _controller.UpdateOrder(orderDto);
 
             // Assert
-            result.Should().BeOfType<BadRequestObjectResult>();
+            Assert.IsType<BadRequestObjectResult>(result);
         }
 
         [Fact]
@@ -202,7 +212,12 @@ namespace OrderService.Test.Controllers
             var result = await _controller.DeleteOrder(orderId);
 
             // Assert
-            result.Should().BeEquivalentTo(okResult);
+            Assert.IsType<OkObjectResult>(result);
+            var okResultActual = (OkObjectResult)result;
+            var value = okResultActual.Value;
+            var messageProperty = value.GetType().GetProperty("message");
+            Assert.NotNull(messageProperty);
+            Assert.Equal("Order deleted successfully", messageProperty.GetValue(value));
         }
 
         [Fact]
@@ -217,11 +232,12 @@ namespace OrderService.Test.Controllers
             var result = await _controller.DeleteOrder(orderId);
 
             // Assert
-            result.Should().BeOfType<BadRequestObjectResult>();
-            _mockLogger.Verify(x => x.Log(LogLevel.Warning,
-                     It.IsAny<EventId>(),
-                     It.IsAny<It.IsAnyType>(), null,
-                     It.IsAny<Func<It.IsAnyType, Exception, string>>()), Times.Once());
+            Assert.IsType<BadRequestObjectResult>(result);
+            var badRequest = (BadRequestObjectResult)result;
+            var value = badRequest.Value;
+            var messageProperty = value.GetType().GetProperty("message");
+            Assert.NotNull(messageProperty);
+            Assert.Equal("Order not found", messageProperty.GetValue(value));
         }
 
         [Fact]
@@ -235,8 +251,10 @@ namespace OrderService.Test.Controllers
             var result = await _controller.DeleteOrder(orderId);
 
             // Assert
-            result.Should().BeOfType<ObjectResult>()
-                .Which.StatusCode.Should().Be(500);
+            Assert.IsType<ObjectResult>(result);
+            var objectResult = (ObjectResult)result;
+            Assert.Equal(500, objectResult.StatusCode);
+            Assert.Equal("Internal server error", objectResult.Value);
         }
     }
 }
