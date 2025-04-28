@@ -2,12 +2,14 @@
 using GrpcClient;
 using GrpcService;
 using Npgsql;
+using System.Data;
 
 namespace SharedRepository.Repositories
 {
     public class DataAccessHelper : IDataAccessHelper
     {
-        private readonly string _dbconnection = "Host=dpg-cuk9b12j1k6c73d5dg20-a.oregon-postgres.render.com;Database=order_management_db_284m;Username=netconsumer;Password=6j9xg3A37zfiU5iRMLqdJmt6YPN46wLZ";
+        protected IDbConnection DbConnection { get; set; } = default!;
+        private readonly string dbconnection = "Host=dpg-cuk9b12j1k6c73d5dg20-a.oregon-postgres.render.com;Database=order_management_db_284m;Username=netconsumer;Password=6j9xg3A37zfiU5iRMLqdJmt6YPN46wLZ";
         private readonly InactiveFlagClient _inactiveFlagClient;
         private readonly ProductDetailsClient _productDetailsClient;
         private readonly CustomerClient _customerClient;
@@ -18,19 +20,17 @@ namespace SharedRepository.Repositories
             _productDetailsClient = productDetailsClient;
             _customerClient = customerClient;
         }
-
         public async Task<bool> ExistsAsync(string tableName, string idColumn, object idValue)
         {
-            using var connection = new NpgsqlConnection(_dbconnection);
-            await connection.OpenAsync();
-            Console.WriteLine($"Connection opened: {connection}");
-
+            DbConnection = new NpgsqlConnection(dbconnection);
+            Console.WriteLine($"Connection opened: {DbConnection}");
             var query = $"SELECT 1 FROM {tableName} WHERE {idColumn} = @IdValue";
-            var exists = await connection.QuerySingleOrDefaultAsync<int>(query, new { IdValue = idValue });
+            var exists = await DbConnection.QuerySingleOrDefaultAsync<int>(query, new { IdValue = idValue });
 
             Console.WriteLine($"ExistsAsync result for {tableName}: {exists}");
             return exists > 0;
         }
+        
 
 
         public async Task<ProductDetailsResponse> GetProductDetailsAsync(int productId)
@@ -102,7 +102,7 @@ namespace SharedRepository.Repositories
         {
             try
             {
-                using var connection = new NpgsqlConnection(_dbconnection);
+                using var connection = new NpgsqlConnection(dbconnection);
                 await connection.OpenAsync();
                 Console.WriteLine($"Connection opened: {connection}");
 
@@ -123,7 +123,7 @@ namespace SharedRepository.Repositories
         {
             try
             {
-                using var connection = new NpgsqlConnection(_dbconnection);
+                using var connection = new NpgsqlConnection(dbconnection);
                 await connection.OpenAsync();
 
                 var stockQuery = "SELECT stock FROM products WHERE product_id = @ProductId";
