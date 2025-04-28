@@ -154,7 +154,7 @@ public class DataAccessHlprTests
     //[Fact]
     public async Task ExistsAsync_ShouldReturnTrue_WhenRecordExist()
     {
-        // Mock IDapperHelper for testing 
+        // Mock IDapperHelper for testing the test cases
         var mockDapperHelper = new Mock<IDapperHelper>();
         mockDapperHelper
             .Setup(helper => helper.QuerySingleOrDefaultAsync<int>(
